@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="dark" data-accent="ember">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <title>كواليس — استوديو صانع المحتوى</title>
+    <meta
+      name="description"
+      content="استوديو صانع المحتوى: أفكارك وسكريبتاتك وجدول نشرك وأرقامك في مكان واحد."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#07070c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="كواليس" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <script>
+      // Paint the saved theme before React loads so there is never a flash of the wrong colours.
+      (function () {
+        try {
+          var saved = JSON.parse(localStorage.getItem('kawalees:appearance') || '{}');
+          var theme = saved.theme || 'system';
+          var dark =
+            theme === 'dark' ||
+            (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
+          root.dataset.theme = dark ? 'dark' : 'light';
+          if (saved.accent) root.dataset.accent = saved.accent;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#07070c' : '#f6f4f0');
+        } catch (e) {
+          /* storage blocked: keep the defaults */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>كواليس يحتاج تفعيل JavaScript حتى يشتغل.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

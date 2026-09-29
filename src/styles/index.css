@@ -1,0 +1,613 @@
+@import 'tailwindcss';
+@import './fonts.css';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ─────────────────────────────────────────────────────────────
+   Design tokens
+   Every colour in the app comes from here, so a theme or accent
+   change is one attribute on <html> and nothing else.
+   ───────────────────────────────────────────────────────────── */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #07070c;
+  --bg-2: #0c0c13;
+  --surface: rgb(255 255 255 / 0.045);
+  --surface-2: rgb(255 255 255 / 0.07);
+  --surface-3: rgb(255 255 255 / 0.11);
+  --solid: #12121a;
+  --solid-2: #191922;
+  --line: rgb(255 255 255 / 0.08);
+  --line-2: rgb(255 255 255 / 0.15);
+  --ink: #f5f3fb;
+  --ink-2: #b0aec1;
+  --ink-3: #85839a;
+  --scrim: rgb(3 3 8 / 0.62);
+  --highlight: rgb(255 255 255 / 0.07);
+  /* Elevation (Fluent-style key + ambient shadows) with an iOS glass edge on top. */
+  --edge: inset 0 1px 0 0 rgb(255 255 255 / 0.07);
+  --elev-1:
+    0 0 0 1px rgb(0 0 0 / 0.18), 0 2px 6px rgb(0 0 0 / 0.22), 0 22px 44px -26px rgb(0 0 0 / 0.85);
+  --elev-2:
+    0 0 0 1px rgb(0 0 0 / 0.22), 0 8px 18px rgb(0 0 0 / 0.32), 0 32px 64px -26px rgb(0 0 0 / 0.9);
+  --elev-3:
+    0 0 2px rgb(0 0 0 / 0.5), 0 8px 16px rgb(0 0 0 / 0.4), 0 28px 60px -10px rgb(0 0 0 / 0.7);
+  --elev-4: 0 0 8px rgb(0 0 0 / 0.5), 0 32px 72px rgb(0 0 0 / 0.65);
+  --shadow-card: var(--edge), var(--elev-1);
+  --shadow-float: inset 0 1px 0 0 rgb(255 255 255 / 0.09), var(--elev-3);
+  --acrylic: color-mix(in oklab, #1a1a24 80%, transparent);
+  --aurora-opacity: 0.5;
+  --noise-opacity: 0.045;
+
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: #f87171;
+
+  /* Pipeline stages: validated as a categorical set (CVD + normal vision) on the dark surface. */
+  --stage-idea: #9085e9;
+  --stage-script: #d55181;
+  --stage-shoot: #3987e5;
+  --stage-edit: #c98500;
+  --stage-ready: #199e70;
+  --stage-published: #d95926;
+
+  --accent-ink: var(--accent-ink-d);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f4f0;
+  --bg-2: #efebe5;
+  --surface: rgb(255 255 255 / 0.74);
+  --surface-2: rgb(24 18 48 / 0.045);
+  --surface-3: rgb(24 18 48 / 0.08);
+  --solid: #ffffff;
+  --solid-2: #faf8f5;
+  --line: rgb(24 18 48 / 0.085);
+  --line-2: rgb(24 18 48 / 0.15);
+  --ink: #15131d;
+  --ink-2: #56536a;
+  --ink-3: #6c697f;
+  --scrim: rgb(20 16 32 / 0.36);
+  --highlight: rgb(255 255 255 / 0.9);
+  --edge: inset 0 1px 0 0 rgb(255 255 255 / 0.95);
+  --elev-1:
+    0 0 2px rgb(24 18 48 / 0.06), 0 2px 6px -1px rgb(24 18 48 / 0.06),
+    0 14px 34px -18px rgb(40 24 80 / 0.2);
+  --elev-2:
+    0 0 2px rgb(24 18 48 / 0.08), 0 8px 16px -4px rgb(24 18 48 / 0.1),
+    0 28px 56px -22px rgb(40 24 80 / 0.3);
+  --elev-3:
+    0 0 2px rgb(24 18 48 / 0.1), 0 8px 18px rgb(24 18 48 / 0.1),
+    0 26px 60px -12px rgb(40 24 80 / 0.28);
+  --elev-4: 0 0 8px rgb(24 18 48 / 0.1), 0 34px 72px rgb(24 18 48 / 0.22);
+  --shadow-card: var(--edge), var(--elev-1);
+  --shadow-float: var(--edge), var(--elev-3);
+  --acrylic: color-mix(in oklab, #fbfaf8 82%, transparent);
+  --aurora-opacity: 0.32;
+  --noise-opacity: 0.03;
+
+  --good: #15803d;
+  --warn: #b45309;
+  --bad: #dc2626;
+
+  --stage-idea: #4a3aa7;
+  --stage-script: #e87ba4;
+  --stage-shoot: #2a78d6;
+  --stage-edit: #eda100;
+  --stage-ready: #1baf7a;
+  --stage-published: #eb6834;
+
+  --accent-ink: var(--accent-ink-l);
+}
+
+/* Accents: fill, second gradient stop, a stronger fill for white text, and text-safe inks per theme. */
+:root,
+[data-accent='ember'] {
+  --accent: #ff6b3d;
+  --accent-2: #ff3d7f;
+  --accent-strong: #ea4f1f;
+  --accent-strong-2: #d92f6a;
+  --accent-ink-d: #ff9570;
+  --accent-ink-l: #c2410c;
+}
+[data-accent='violet'] {
+  --accent: #8b5cf6;
+  --accent-2: #d946ef;
+  --accent-strong: #7c3aed;
+  --accent-strong-2: #b624c9;
+  --accent-ink-d: #b9a2ff;
+  --accent-ink-l: #6d28d9;
+}
+[data-accent='ocean'] {
+  --accent: #0ea5e9;
+  --accent-2: #6366f1;
+  --accent-strong: #0578b5;
+  --accent-strong-2: #4f46e5;
+  --accent-ink-d: #67cdfc;
+  --accent-ink-l: #0369a1;
+}
+[data-accent='mint'] {
+  --accent: #10b981;
+  --accent-2: #06b6d4;
+  --accent-strong: #047857;
+  --accent-strong-2: #0e7490;
+  --accent-ink-d: #5ee6b5;
+  --accent-ink-l: #047857;
+}
+[data-accent='gold'] {
+  --accent: #f59e0b;
+  --accent-2: #ef4444;
+  --accent-strong: #b45309;
+  --accent-strong-2: #c52525;
+  --accent-ink-d: #fcc451;
+  --accent-ink-l: #a14b06;
+}
+
+:root {
+  --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+  --accent-softer: color-mix(in oklab, var(--accent) 8%, transparent);
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  --accent-gradient-strong: linear-gradient(
+    135deg,
+    var(--accent-strong) 0%,
+    var(--accent-strong-2) 100%
+  );
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@theme inline {
+  --font-sans:
+    'IBM Plex Sans Arabic', 'Readex Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Readex Pro', 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-solid: var(--solid);
+  --color-solid-2: var(--solid-2);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-softer: var(--accent-softer);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-scrim: var(--scrim);
+
+  --radius-card: 1.5rem;
+  --radius-tile: 1.125rem;
+  --radius-control: 0.875rem;
+
+  --shadow-card: var(--shadow-card);
+  --shadow-float: var(--shadow-float);
+  --shadow-elev-1: var(--edge), var(--elev-1);
+  --shadow-elev-2: var(--edge), var(--elev-2);
+  --shadow-elev-3: var(--edge), var(--elev-3);
+  --shadow-elev-4: var(--edge), var(--elev-4);
+
+  --ease-out: var(--ease-out);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────────────────────── */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    background: var(--bg);
+    overscroll-behavior: none;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    /* Transparent so the fixed aurora layer (z-index -1) shows through; html paints the base colour. */
+    background: transparent;
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern';
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  textarea {
+    field-sizing: content;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--ink-3);
+    opacity: 1;
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-2) transparent;
+  }
+
+  /* Numbers inside Arabic text keep reading left-to-right. */
+  .num {
+    unicode-bidi: isolate;
+    direction: ltr;
+    display: inline-block;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Signature surfaces
+   ───────────────────────────────────────────────────────────── */
+
+@utility glass {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  backdrop-filter: blur(22px) saturate(1.5);
+}
+
+@utility glass-strong {
+  background: color-mix(in oklab, var(--solid) 82%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+  -webkit-backdrop-filter: blur(28px) saturate(1.6);
+  backdrop-filter: blur(28px) saturate(1.6);
+}
+
+/* Fluent-style acrylic for popovers, menus, tooltips and the command palette:
+   heavy blur, a luminosity tint and a whisper of grain. */
+@utility acrylic {
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    var(--acrylic);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow-float);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8);
+}
+
+@utility bg-accent-gradient {
+  background-image: var(--accent-gradient);
+}
+
+@utility bg-accent-gradient-strong {
+  background-image: var(--accent-gradient-strong);
+}
+
+@utility text-gradient {
+  background-image: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Aurora: three soft light sources drifting behind the glass. Radial gradients
+   instead of filter:blur keep it cheap enough for an older iPad. */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg);
+}
+.aurora__blob {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 9999px;
+  opacity: var(--aurora-opacity);
+  will-change: transform;
+}
+.aurora__blob--a {
+  inset-block-start: -35vmax;
+  inset-inline-start: -20vmax;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in oklab, var(--accent) 55%, transparent) 0%,
+    transparent 62%
+  );
+  animation: aurora-a 38s ease-in-out infinite alternate;
+}
+.aurora__blob--b {
+  inset-block-start: -10vmax;
+  inset-inline-end: -35vmax;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in oklab, var(--accent-2) 45%, transparent) 0%,
+    transparent 60%
+  );
+  animation: aurora-b 46s ease-in-out infinite alternate;
+}
+.aurora__blob--c {
+  inset-block-end: -45vmax;
+  inset-inline-start: 10vmax;
+  background: radial-gradient(circle at center, rgb(99 88 255 / 0.4) 0%, transparent 60%);
+  animation: aurora-c 52s ease-in-out infinite alternate;
+}
+.aurora__noise {
+  position: absolute;
+  inset: 0;
+  opacity: var(--noise-opacity);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+[data-theme='light'] .aurora__noise {
+  mix-blend-mode: multiply;
+  filter: invert(1);
+}
+
+@keyframes aurora-a {
+  to {
+    transform: translate3d(12vmax, 10vmax, 0) scale(1.08);
+  }
+}
+@keyframes aurora-b {
+  to {
+    transform: translate3d(-14vmax, 12vmax, 0) scale(0.94);
+  }
+}
+@keyframes aurora-c {
+  to {
+    transform: translate3d(10vmax, -12vmax, 0) scale(1.1);
+  }
+}
+
+/* Shimmer used on skeletons and the level bar. */
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, transparent 0%, var(--highlight) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.4s linear infinite;
+}
+
+/* ── Interaction layer ─────────────────────────────────────── */
+
+/* Material-style ripple: spawned at the touch point by lib/interactions.ts. */
+[data-ripple] {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.ripple {
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.16;
+  transform: scale(0);
+  animation: ripple 620ms var(--ease-out) forwards;
+}
+@keyframes ripple {
+  60% {
+    opacity: 0.14;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* Spotlight: a soft light that follows the pointer across cards on desktop. */
+[data-spotlight] {
+  position: relative;
+}
+[data-spotlight]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms var(--ease-out);
+  background: radial-gradient(
+    420px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in oklab, var(--accent) 11%, transparent),
+    transparent 45%
+  );
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-spotlight]:hover::before {
+    opacity: 1;
+  }
+}
+
+/* A light that travels around a card's border (goal reached, celebrations). */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.shine-border::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--angle),
+    transparent 0 62%,
+    var(--accent) 76%,
+    var(--accent-2) 88%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin-angle 4.5s linear infinite;
+}
+@keyframes spin-angle {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/* iOS: when a sheet opens on a phone, the page behind it steps back. */
+@media (max-width: 767px) {
+  #root {
+    transition:
+      transform 480ms var(--ease-out),
+      filter 480ms var(--ease-out),
+      clip-path 480ms var(--ease-out);
+    transform-origin: 50% var(--sheet-y, 0px);
+  }
+  html[data-sheet='open'] {
+    background: #000;
+    --scrim: rgb(0 0 0 / 0.28);
+  }
+  html[data-sheet='open'] #root {
+    transform: translateY(calc(env(safe-area-inset-top) + 12px)) scale(0.93);
+    filter: brightness(0.82) saturate(0.9);
+    clip-path: inset(var(--sheet-y, 0px) 0 var(--sheet-bottom, 0px) 0 round 26px);
+  }
+}
+
+/* Continuous (squircle) corners where the browser supports them. */
+@supports (corner-shape: squircle) {
+  .glass,
+  .glass-strong,
+  .acrylic {
+    corner-shape: squircle;
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-time {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes flame {
+  0%,
+  100% {
+    transform: scale(1) rotate(-2deg);
+  }
+  50% {
+    transform: scale(1.08) rotate(2deg);
+  }
+}
+.flame {
+  animation: flame 1.6s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .glass,
+  .glass-strong {
+    border: 1px solid CanvasText;
+  }
+}
