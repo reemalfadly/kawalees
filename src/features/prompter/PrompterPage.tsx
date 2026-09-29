@@ -1,21 +1,24 @@
-import { FlipHorizontal2, Minus, Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
+import { FlipHorizontal2, Mic, Minus, Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { useIdea } from '@/hooks/data';
+import { useIdea, useSettings } from '@/hooks/data';
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/script';
+import { followSpeech, isSpace, normalizeWord, tokenize } from '@/lib/voiceFollow';
 
-/* Teleprompter: the script scrolls by itself past a reading line while you film.
-   Keeps the screen awake, mirrors for prompter glass, and remembers your setup. */
+/* Teleprompter: the script scrolls past a reading line while filming, either at a
+   steady speed or following the reader's voice (speech recognition). Keeps the
+   screen awake, mirrors for prompter glass, and remembers the setup. */
 
 const PREFS_KEY = 'kawalees:prompter';
 interface Prefs {
   size: number;
   speed: number;
   mirror: boolean;
+  voice: boolean;
 }
-const DEFAULTS: Prefs = { size: 40, speed: 4, mirror: false };
+const DEFAULTS: Prefs = { size: 40, speed: 4, mirror: false, voice: false };
 
 function loadPrefs(): Prefs {
   try {
@@ -30,9 +33,38 @@ const pxPerSecond = (speed: number) => 14 + speed * 16;
 
 type WakeLock = { release: () => Promise<void> };
 
+// The Web Speech API, as far as voice-follow uses it (Chrome and Safari ship it prefixed).
+interface Recognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  abort: () => void;
+}
+type RecognitionCtor = new () => Recognition;
+
+function recognitionCtor(): RecognitionCtor | undefined {
+  const w = window as unknown as {
+    SpeechRecognition?: RecognitionCtor;
+    webkitSpeechRecognition?: RecognitionCtor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition;
+}
+
+const VOICE_ERRORS: Record<string, string> = {
+  'not-allowed': 'متابعة الصوت تحتاج إذن المايك',
+  'service-not-allowed': 'متابعة الصوت تحتاج إذن المايك',
+  network: 'متابعة الصوت تحتاج إنترنت',
+  'audio-capture': 'ما لقينا مايك شغال',
+};
+
 export default function PrompterPage() {
   const { id } = useParams();
   const idea = useIdea(id);
+  const settings = useSettings();
   const navigate = useNavigate();
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [playing, setPlaying] = useState(false);
@@ -44,6 +76,35 @@ export default function PrompterPage() {
   const exact = useRef(0);
   const wake = useRef<WakeLock | null>(null);
   const hideTimer = useRef<number | undefined>(undefined);
+  // Voice-follow: how many script words have been said so far.
+  const [said, setSaid] = useState(0);
+  const saidRef = useRef(0);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  // The script as sections of tokens; every word gets a running index for voice-follow.
+  const script = useMemo(() => {
+    const words: string[] = [];
+    const sections = idea
+      ? [
+          { label: 'الخطّاف', text: idea.hook },
+          { label: 'المحتوى', text: idea.body },
+          { label: 'الدعوة للتفاعل', text: idea.cta },
+        ]
+          .filter((s) => s.text.trim())
+          .map((s) => ({
+            label: s.label,
+            tokens: tokenize(s.text).map((t) =>
+              isSpace(t) ? { t, i: -1 } : { t, i: words.push(normalizeWord(t)) - 1 },
+            ),
+          }))
+      : [];
+    return { sections, words };
+  }, [idea]);
+
+  const setSaidAt = useCallback((n: number) => {
+    saidRef.current = n;
+    setSaid(n);
+  }, []);
 
   useEffect(() => {
     try {
@@ -58,9 +119,11 @@ export default function PrompterPage() {
     [navigate, id],
   );
 
-  // Scroll loop.
+  const listening = playing && prefs.voice;
+
+  // Steady scroll loop.
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || prefs.voice) return;
     const el = scroller.current;
     if (!el) return;
     exact.current = el.scrollTop;
@@ -79,7 +142,90 @@ export default function PrompterPage() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, prefs.speed]);
+  }, [playing, prefs.speed, prefs.voice]);
+
+  // Voice-follow: listen, and move the reading position to the words just said.
+  useEffect(() => {
+    if (!listening) return;
+    const Ctor = recognitionCtor();
+    if (!Ctor) return;
+    let alive = true;
+    let rec: Recognition | null = null;
+    const fail = (message: string) => {
+      alive = false;
+      setVoiceError(message);
+      setPlaying(false);
+    };
+    const begin = () => {
+      const r = new Ctor();
+      rec = r;
+      r.lang = 'ar-SA';
+      r.continuous = true;
+      r.interimResults = true;
+      r.onresult = (e) => {
+        let heard = '';
+        for (let i = 0; i < e.results.length; i++)
+          heard += ' ' + (e.results[i]?.[0]?.transcript ?? '');
+        const next = followSpeech(script.words, saidRef.current, heard.trim().split(/\s+/u));
+        if (next === saidRef.current) return;
+        setSaidAt(next);
+        if (next >= script.words.length) setPlaying(false);
+      };
+      r.onerror = (e) => {
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+        fail(VOICE_ERRORS[e.error] ?? 'تعذّرت متابعة الصوت');
+      };
+      // Browsers end a session after a pause; carry on listening until stopped.
+      r.onend = () => {
+        if (!alive) return;
+        try {
+          begin();
+        } catch {
+          fail('تعذّرت متابعة الصوت');
+        }
+      };
+      r.start();
+    };
+    try {
+      begin();
+    } catch {
+      queueMicrotask(() => fail('تعذّرت متابعة الصوت'));
+    }
+    return () => {
+      alive = false;
+      const r = rec as Recognition | null;
+      if (!r) return;
+      r.onend = null;
+      r.onresult = null;
+      r.onerror = null;
+      try {
+        r.abort();
+      } catch {
+        /* already stopped */
+      }
+    };
+  }, [listening, script, setSaidAt]);
+
+  // Voice-follow scrolling: glide the last word said onto the reading line.
+  useEffect(() => {
+    if (!listening) return;
+    const el = scroller.current;
+    if (!el) return;
+    let raf = 0;
+    const tick = () => {
+      const word = el.querySelector<HTMLElement>(`[data-w="${Math.max(0, saidRef.current - 1)}"]`);
+      if (word) {
+        const top =
+          word.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+        const target = top + word.offsetHeight / 2 - el.clientHeight * 0.36;
+        const d = target - el.scrollTop;
+        if (Math.abs(d) > 0.5) el.scrollTop += d * 0.08;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [listening]);
 
   // Keep the screen on while recording.
   useEffect(() => {
@@ -123,6 +269,7 @@ export default function PrompterPage() {
   }, [countdown, poke]);
 
   const toggle = useCallback(() => {
+    setVoiceError(null);
     if (countdown !== null) {
       setCountdown(null);
       return;
@@ -133,8 +280,20 @@ export default function PrompterPage() {
     } else start();
   }, [countdown, playing, start]);
 
+  const toggleVoice = () => {
+    if (!prefs.voice && !recognitionCtor()) {
+      setVoiceError('متابعة الصوت تشتغل في كروم وسفاري');
+      return;
+    }
+    setVoiceError(null);
+    setPlaying(false);
+    setCountdown(null);
+    setPrefs((p) => ({ ...p, voice: !p.voice }));
+  };
+
   const restart = () => {
     setPlaying(false);
+    setSaidAt(0);
     scroller.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -174,13 +333,10 @@ export default function PrompterPage() {
 
   if (!idea) return <div className="fixed inset-0 bg-[#050507]" />;
 
-  const sections = [
-    { label: 'الخطّاف', text: idea.hook },
-    { label: 'المحتوى', text: idea.body },
-    { label: 'الدعوة للتفاعل', text: idea.cta },
-  ].filter((s) => s.text.trim());
-
-  const remaining = remainingPx / pxPerSecond(prefs.speed);
+  const { sections, words } = script;
+  const remaining = prefs.voice
+    ? (Math.max(0, words.length - said) / Math.max(1, settings.wordsPerMinute)) * 60
+    : remainingPx / pxPerSecond(prefs.speed);
 
   const showChrome = chrome || !playing;
 
@@ -215,7 +371,23 @@ export default function PrompterPage() {
                 {s.label}
               </p>
               <p className="font-display leading-[1.55] font-semibold whitespace-pre-wrap text-white/95">
-                {s.text}
+                {s.tokens.map((tok, k) =>
+                  tok.i < 0 ? (
+                    tok.t
+                  ) : (
+                    <span
+                      key={k}
+                      data-w={tok.i}
+                      data-said={prefs.voice && tok.i < said ? '' : undefined}
+                      className={cn(
+                        'transition-colors duration-300',
+                        prefs.voice && tok.i < said && 'text-white/35',
+                      )}
+                    >
+                      {tok.t}
+                    </span>
+                  ),
+                )}
               </p>
             </section>
           ))}
@@ -259,6 +431,15 @@ export default function PrompterPage() {
           <X size={20} />
         </button>
         <p className="line-clamp-1 flex-1 text-sm font-medium text-white/70">{idea.title}</p>
+        {listening && (
+          <span
+            role="status"
+            className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl"
+          >
+            <span className="size-2 animate-pulse rounded-full bg-[var(--accent)]" />
+            الاستماع شغال
+          </span>
+        )}
         <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70 backdrop-blur-xl">
           باقي <span className="num">{formatDuration(remaining)}</span>
         </span>
@@ -273,6 +454,14 @@ export default function PrompterPage() {
           !showChrome && 'pointer-events-none',
         )}
       >
+        {voiceError && (
+          <p
+            role="alert"
+            className="mx-auto mb-3 w-fit rounded-full bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-xl"
+          >
+            {voiceError}
+          </p>
+        )}
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-3 rounded-[26px] border border-white/10 bg-white/[0.07] p-3 backdrop-blur-2xl">
           <CtlButton label="من البداية" onClick={restart}>
             <RotateCcw size={19} />
@@ -306,7 +495,12 @@ export default function PrompterPage() {
               <Play size={28} fill="currentColor" className="-me-1" />
             )}
           </button>
-          <label className="flex items-center gap-2.5 rounded-2xl bg-white/5 px-3 py-2">
+          <label
+            className={cn(
+              'flex items-center gap-2.5 rounded-2xl bg-white/5 px-3 py-2',
+              prefs.voice && 'hidden',
+            )}
+          >
             <span className="text-xs text-white/60">السرعة</span>
             <input
               type="range"
@@ -321,6 +515,9 @@ export default function PrompterPage() {
               <span className="num">{prefs.speed}</span>
             </span>
           </label>
+          <CtlButton label="يتبع الصوت" active={prefs.voice} onClick={toggleVoice}>
+            <Mic size={19} />
+          </CtlButton>
           <CtlButton
             label="عكس الصورة للمرآة"
             active={prefs.mirror}

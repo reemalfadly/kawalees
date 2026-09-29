@@ -211,3 +211,44 @@ test.describe('demo', () => {
     await expect(sheet).toHaveCount(0);
   });
 });
+
+test.describe('prompter voice-follow', () => {
+  test('the script follows the voice', async ({ page, errors: _errors }) => {
+    // A stand-in recogniser that "hears" the hook one word at a time.
+    await page.addInitScript(() => {
+      class FakeRecognition {
+        lang = '';
+        continuous = false;
+        interimResults = false;
+        onresult: ((e: unknown) => void) | null = null;
+        onerror: ((e: unknown) => void) | null = null;
+        onend: (() => void) | null = null;
+        start() {
+          const words = 'صوّرت سبع فيديوهات في يوم واحد'.split(' ');
+          let n = 0;
+          const tick = () => {
+            if (!this.onresult) return;
+            n++;
+            this.onresult({ results: [[{ transcript: words.slice(0, n).join(' ') }]] });
+            if (n < words.length) setTimeout(tick, 150);
+          };
+          setTimeout(tick, 150);
+        }
+        abort() {
+          this.onresult = null;
+        }
+      }
+      const w = window as unknown as Record<string, unknown>;
+      w.SpeechRecognition = FakeRecognition;
+      w.webkitSpeechRecognition = FakeRecognition;
+    });
+    await startWithDemo(page);
+    await page.goto('./#/ideas');
+    await page.getByRole('link', { name: 'صوّرت محتوى أسبوع كامل في يوم واحد' }).click();
+    await page.getByRole('button', { name: 'وضع التصوير', exact: true }).first().click();
+    await page.getByRole('button', { name: 'يتبع الصوت' }).click();
+    await page.getByRole('button', { name: 'تشغيل' }).click();
+    await expect(page.getByText('الاستماع شغال')).toBeVisible();
+    await expect(page.locator('[data-said]')).toHaveCount(6, { timeout: 8000 });
+  });
+});
