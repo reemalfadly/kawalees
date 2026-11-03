@@ -1,12 +1,15 @@
 {
   "name": "kawalees",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "build:native": "tsc -b && vite build --mode native",
+    "desktop": "npm run build:native && electron .",
+    "dist:desktop": "npm run build:native && electron-builder --publish never",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -47,6 +50,8 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^45.2.2",
+    "electron-builder": "^26.18.0",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
@@ -63,5 +68,11 @@
   },
   "engines": {
     "node": ">=20.19"
-  }
+  },
+  "description": "كواليس: استوديو صانع المحتوى",
+  "author": {
+    "name": "Eng. Reem Alfadly"
+  },
+  "homepage": "https://github.com/reemalfadly/kawalees",
+  "main": "electron/main.cjs"
 }

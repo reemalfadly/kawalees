@@ -1,0 +1,6 @@
+{
+  "appId": "com.reemalfadly.kawalees",
+  "appName": "كواليس",
+  "webDir": "dist",
+  "android": { "backgroundColor": "#0E0B12" }
+}

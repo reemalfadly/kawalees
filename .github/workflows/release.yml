@@ -1,0 +1,116 @@
+name: Release
+
+# Builds the downloadable apps on every version tag (v1.2.0, …) and publishes them
+# as a GitHub Release with fixed file names, so these links always fetch the latest:
+#   https://github.com/<owner>/<repo>/releases/latest/download/Kawalees-Windows-Setup.exe
+#   …/Kawalees-Mac.dmg · …/Kawalees-Linux.AppImage · …/Kawalees-Android.apk
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    name: Desktop (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, os: windows-latest, target: --win }
+          - { name: macOS, os: macos-latest, target: --mac }
+          - { name: Linux, os: ubuntu-latest, target: --linux }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:native
+      - run: npx electron-builder ${{ matrix.target }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.name }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+          if-no-files-found: error
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build:native
+      # The Android project is generated fresh on each release instead of living in the repo.
+      - run: npm install --no-save @capacitor/core@8 @capacitor/cli@8 @capacitor/android@8 @capacitor/assets@4
+      - run: npx cap add android
+      - name: App icon and splash
+        run: |
+          mkdir -p assets
+          cp build/icon.png assets/logo.png
+          npx capacitor-assets generate --android \
+            --iconBackgroundColor '#0E0B12' --iconBackgroundColorDark '#0E0B12' \
+            --splashBackgroundColor '#0E0B12' --splashBackgroundColorDark '#0E0B12'
+      - run: npx cap sync android
+      - run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk Kawalees-Android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: Kawalees-Android.apk
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: كواليس ${{ github.ref_name }}
+          make_latest: true
+          files: out/*
+          body: |
+            ## تحميل كواليس
+
+            | الجهاز | الملف |
+            | --- | --- |
+            | ويندوز | **Kawalees-Windows-Setup.exe** |
+            | ماك (Apple Silicon و Intel) | **Kawalees-Mac.dmg** |
+            | أندرويد | **Kawalees-Android.apk** |
+            | لينكس | **Kawalees-Linux.AppImage** |
+            | آيفون وآيباد | من المتصفح: Safari ← المشاركة ← «إضافة إلى الشاشة الرئيسية» |
+
+            **أول تشغيل:**
+            - **ويندوز:** إذا طلع تنبيه «Windows protected your PC»: More info ← Run anyway.
+            - **ماك:** فتح الملف وسحب Kawalees إلى Applications. أول مرة: إعدادات النظام ← الخصوصية والأمان ← «Open Anyway».
+            - **أندرويد:** فتح الملف والسماح بالتثبيت من هذا المصدر.
+            - **لينكس:** خصائص الملف ← السماح بالتشغيل، ثم فتحه.
+
+            البيانات محفوظة على الجهاز نفسه. للنقل بين الأجهزة: الإعدادات ← تصدير نسخة، ثم استيراد في الجهاز الثاني.

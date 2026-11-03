@@ -43,9 +43,14 @@ const targets = [
   { file: 'maskable-512.png', size: 512, rounded: false, scale: 0.78 },
   // iOS rounds the corners itself and shows transparency as black, so no radius here.
   { file: 'apple-touch-icon.png', size: 180, rounded: false, scale: 0.86 },
+  // Desktop and Android app icon (electron-builder and the Android build read it from build/).
+  { file: '../build/icon.png', size: 1024, rounded: true, scale: 1 },
 ];
+mkdirSync(resolve(root, 'build'), { recursive: true });
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  executablePath: process.env.PW_CHROMIUM_PATH || undefined,
+});
 const page = await browser.newPage();
 for (const t of targets) {
   await page.setViewportSize({ width: t.size, height: t.size });

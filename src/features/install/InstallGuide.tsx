@@ -38,7 +38,11 @@ interface Guide {
   to: string;
   steps: Step[];
   note?: ReactNode;
+  /** A downloadable program for this platform, from the latest GitHub release. */
+  download?: { file: string; label: string; extra?: { file: string; label: string } };
 }
+
+const RELEASES = 'https://github.com/reemalfadly/kawalees/releases/latest/download/';
 
 const b = (t: string) => <b className="font-semibold text-ink">{t}</b>;
 
@@ -72,6 +76,7 @@ const GUIDES: Record<Platform, Guide> = {
     label: 'أندرويد',
     device: 'جوالات وتابلت أندرويد',
     browser: 'Chrome',
+    download: { file: 'Kawalees-Android.apk', label: 'تحميل التطبيق لأندرويد (APK)' },
     icon: Smartphone,
     from: '#34d399',
     to: '#0d9488',
@@ -99,6 +104,11 @@ const GUIDES: Record<Platform, Guide> = {
     label: 'ويندوز',
     device: 'ويندوز، ولينكس، وكروم بوك',
     browser: 'Edge أو Chrome',
+    download: {
+      file: 'Kawalees-Windows-Setup.exe',
+      label: 'تحميل البرنامج لويندوز',
+      extra: { file: 'Kawalees-Linux.AppImage', label: 'نسخة لينكس' },
+    },
     icon: Monitor,
     from: '#38bdf8',
     to: '#4f46e5',
@@ -130,6 +140,7 @@ const GUIDES: Record<Platform, Guide> = {
     label: 'ماك',
     device: 'MacBook و iMac',
     browser: 'Safari أو Chrome',
+    download: { file: 'Kawalees-Mac.dmg', label: 'تحميل البرنامج للماك' },
     icon: Laptop,
     from: '#a78bfa',
     to: '#7c3aed',
@@ -212,6 +223,33 @@ export function InstallGuide({ compact }: { compact?: boolean }) {
               <p className="text-xs text-ink-3">المتصفح: {guide.browser}</p>
             </div>
           </div>
+          {guide.download && !__NATIVE__ && (
+            <div className="flex flex-col gap-2 rounded-2xl border border-line p-4">
+              <p className="text-sm text-ink-2">برنامج كامل ينزل على الجهاز ويشتغل بدون متصفح:</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href={RELEASES + guide.download.file}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-ripple
+                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-accent-gradient px-4 text-sm font-semibold text-white shadow-elev-1"
+                >
+                  <Download size={18} /> {guide.download.label}
+                </a>
+                {guide.download.extra && (
+                  <a
+                    href={RELEASES + guide.download.extra.file}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium text-accent-ink hover:underline"
+                  >
+                    {guide.download.extra.label}
+                  </a>
+                )}
+              </div>
+              <p className="text-xs leading-5 text-ink-3">أو التثبيت من المتصفح بالخطوات تحت:</p>
+            </div>
+          )}
           <ol className="flex flex-col gap-2.5">
             {guide.steps.map((s, i) => (
               <li key={i} className="flex items-start gap-3 rounded-2xl bg-surface-2 p-3">

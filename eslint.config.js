@@ -6,7 +6,15 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig([
-  globalIgnores(['dist', 'dev-dist', 'coverage', 'playwright-report', 'test-results']),
+  globalIgnores([
+    'dist',
+    'dev-dist',
+    'coverage',
+    'playwright-report',
+    'test-results',
+    'release',
+    'android',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -27,6 +35,11 @@ export default defineConfig([
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       eqeqeq: ['error', 'smart'],
     },
+  },
+  {
+    files: ['electron/**/*.cjs'],
+    extends: [js.configs.recommended],
+    languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
   {
     files: ['tests/**/*.{ts,tsx}', '*.config.ts', 'scripts/**/*.mjs'],

@@ -14,6 +14,8 @@ export default defineConfig({
     locale: 'ar-KW',
     timezoneId: 'Asia/Kuwait',
     trace: 'retain-on-failure',
+    // Lets a machine with a different Chromium build run the suite (PW_CHROMIUM_PATH=/path/to/chrome).
+    launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH || undefined },
   },
   projects: [
     {

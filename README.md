@@ -6,7 +6,14 @@
 
 **استوديو صانع المحتوى: من الفكرة إلى النشر، في مكان واحد**
 
-[**فتح كواليس ←**](https://reemalfadly.github.io/kawalees/)
+### ⬇️ تحميل البرنامج
+
+[**ويندوز**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Windows-Setup.exe) ·
+[**ماك**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Mac.dmg) ·
+[**أندرويد**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Android.apk) ·
+[**لينكس**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Linux.AppImage)
+
+أو [**فتحه من المتصفح**](https://reemalfadly.github.io/kawalees/) بدون تحميل (والطريقة الوحيدة للآيفون والآيباد)
 
 مجاني · بالعربي · يشتغل بدون إنترنت · بياناتك على جهازك وبس
 
@@ -39,9 +46,28 @@
 
 ---
 
-## التثبيت على الأجهزة
+## تحميل البرنامج على الجهاز
 
-كواليس **تطبيق ويب قابل للتثبيت (PWA)**: ما يحتاج متجر تطبيقات ولا تحميل ملفات.
+كواليس **برنامج كامل** ينزل على الجهاز ويفتح من سطح المكتب أو قائمة التطبيقات، ويشتغل بدون إنترنت.
+
+| الجهاز                         | التحميل                                                                                                                   | أول تشغيل                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 🪟 ويندوز 10 و 11              | [Kawalees-Windows-Setup.exe](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Windows-Setup.exe) | فتح الملف وإكمال التثبيت. إذا طلع تنبيه «Windows protected your PC»: **More info ← Run anyway**            |
+| 🍎 ماك (Apple Silicon و Intel) | [Kawalees-Mac.dmg](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Mac.dmg)                     | فتح الملف وسحب Kawalees إلى **Applications**. أول مرة: **إعدادات النظام ← الخصوصية والأمان ← Open Anyway** |
+| 🤖 أندرويد                     | [Kawalees-Android.apk](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Android.apk)             | فتح الملف من الجوال، والسماح بالتثبيت من هذا المصدر لما يطلب                                               |
+| 🐧 لينكس                       | [Kawalees-Linux.AppImage](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Linux.AppImage)       | خصائص الملف ← السماح بالتشغيل، ثم فتحه                                                                     |
+| 📱 آيفون وآيباد                | من المتصفح (تحت)                                                                                                          | Apple ما تسمح بتحميل برامج من خارج App Store، فالتثبيت يكون من Safari                                      |
+
+> التنبيهات اللي تطلع أول مرة في ويندوز وماك طبيعية لأي برنامج جديد من خارج المتاجر، وتطلع مرة وحدة بس.
+> كل الإصدارات في صفحة [Releases](https://github.com/reemalfadly/kawalees/releases).
+
+**ملاحظة:** وضع التصوير «يتبع الصوت» يشتغل في نسخة المتصفح (Chrome و Safari). في البرنامج المحمّل، وضع التصوير يشتغل بالسرعة الثابتة.
+
+---
+
+## التثبيت من المتصفح
+
+طريقة ثانية بدون تحميل أي ملف: كواليس **تطبيق ويب قابل للتثبيت (PWA)**.
 يتثبت من المتصفح بدقيقة، وبعدها يفتح من الشاشة الرئيسية مثل أي تطبيق، بنافذة خاصة فيه وبدون شريط المتصفح.
 
 **الرابط:** https://reemalfadly.github.io/kawalees/

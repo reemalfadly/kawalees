@@ -29,7 +29,9 @@ const shots = [
   { file: 'desktop-stats.jpg', w: 1440, h: 900, mobile: false, theme: 'light', route: '#/stats' },
 ];
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  executablePath: process.env.PW_CHROMIUM_PATH || undefined,
+});
 for (const s of shots) {
   const context = await browser.newContext({
     viewport: { width: s.w, height: s.h },

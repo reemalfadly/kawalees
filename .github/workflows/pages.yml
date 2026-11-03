@@ -13,6 +13,10 @@ permissions:
   pages: write
   id-token: write
 
+# The desktop runtime is only needed when building installers (release.yml).
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
 concurrency:
   group: pages
   cancel-in-progress: false

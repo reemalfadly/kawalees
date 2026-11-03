@@ -24,6 +24,8 @@ if (typeof window !== 'undefined') {
 }
 
 export function isStandalone(): boolean {
+  // The downloaded desktop and Android apps are installed by definition.
+  if (__NATIVE__) return true;
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: window-controls-overlay)').matches ||

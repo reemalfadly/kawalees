@@ -47,6 +47,8 @@ interface Recognition {
 type RecognitionCtor = new () => Recognition;
 
 function recognitionCtor(): RecognitionCtor | undefined {
+  // Speech recognition relies on the browser's own service, which the downloaded apps don't have.
+  if (__NATIVE__) return undefined;
   const w = window as unknown as {
     SpeechRecognition?: RecognitionCtor;
     webkitSpeechRecognition?: RecognitionCtor;
@@ -282,7 +284,9 @@ export default function PrompterPage() {
 
   const toggleVoice = () => {
     if (!prefs.voice && !recognitionCtor()) {
-      setVoiceError('متابعة الصوت تشتغل في كروم وسفاري');
+      setVoiceError(
+        __NATIVE__ ? 'متابعة الصوت تشتغل في نسخة المتصفح' : 'متابعة الصوت تشتغل في كروم وسفاري',
+      );
       return;
     }
     setVoiceError(null);

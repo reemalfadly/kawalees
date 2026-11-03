@@ -1,0 +1,42 @@
+# Desktop installers for Windows, macOS and Linux. Built by .github/workflows/release.yml
+# on every version tag; file names stay fixed so "latest" download links never change.
+appId: com.reemalfadly.kawalees
+productName: Kawalees
+copyright: Copyright © 2026 Eng. Reem Alfadly
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - electron/**/*
+  - build/icon.png
+  - package.json
+  - '!node_modules/**/*'
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: Kawalees-Windows-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Kawalees
+mac:
+  target:
+    - target: dmg
+      arch: [universal]
+  category: public.app-category.productivity
+  artifactName: Kawalees-Mac.${ext}
+  # Ad-hoc signature: no paid certificate, but the app still runs on Apple Silicon.
+  identity: '-'
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Office
+  artifactName: Kawalees-Linux.${ext}
+publish: null

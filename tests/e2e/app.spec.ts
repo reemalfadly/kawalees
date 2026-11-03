@@ -187,7 +187,7 @@ test.describe('install', () => {
     for (const [tab, text] of [
       ['آيفون وآيباد', 'إضافة إلى الشاشة الرئيسية'],
       ['أندرويد', 'تثبيت التطبيق'],
-      ['ويندوز', 'Microsoft Edge'],
+      ['ويندوز', 'تحميل البرنامج لويندوز'],
       ['ماك', 'Add to Dock'],
     ] as const) {
       await sheet.getByRole('radio', { name: new RegExp(tab) }).click();

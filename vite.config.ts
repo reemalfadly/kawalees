@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    // `--mode native` builds the copy packaged as the desktop and Android apps.
+    __NATIVE__: JSON.stringify(mode === 'native'),
   },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
@@ -24,8 +26,9 @@ export default defineConfig(({ mode }) => ({
     react(),
     tailwindcss(),
     VitePWA({
-      // `vite build --mode preview-artifact` makes a copy for hosts that don't allow service workers.
-      disable: mode === 'preview-artifact',
+      // No service worker for hosts that don't allow one (preview-artifact) or don't need one:
+      // the desktop and Android apps already ship every file inside the app.
+      disable: mode === 'preview-artifact' || mode === 'native',
       registerType: 'prompt',
       injectRegister: false,
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
