@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { Archive, ArchiveRestore, ArrowLeft, Copy, Trash2 } from 'lucide-react';
 import type { MenuItem } from '@/components/ui/Menu';
 import { STAGE_META } from '@/lib/catalog';

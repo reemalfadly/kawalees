@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { Archive, Columns3, LayoutGrid, Lightbulb, Plus, Search, SearchX, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';

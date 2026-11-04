@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { db } from './db';
 import { DEFAULT_PILLARS } from './catalog';
 import { todayKey } from './dates';

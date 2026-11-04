@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useLayoutEffect, useRef, useState } from 'react';
 
 /** Tracks an element's width so SVG charts can draw at real pixel sizes. */

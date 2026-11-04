@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useId, type ReactNode } from 'react';
 
 /* Circular meter with the accent gradient. The track is a quiet step of the

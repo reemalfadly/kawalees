@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 // كواليس as a desktop program: one window that serves the built app from an
 // app:// origin, so everything saved in it (IndexedDB) stays between launches.
 const { app, BrowserWindow, net, protocol, shell } = require('electron');

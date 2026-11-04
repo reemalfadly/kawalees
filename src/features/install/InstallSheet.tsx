@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { Sheet } from '@/components/ui/Sheet';
 import { useUI } from '@/store/ui';
 import { InstallGuide } from './InstallGuide';

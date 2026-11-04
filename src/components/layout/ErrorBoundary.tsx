@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { trackError } from '@/lib/tracker';
 

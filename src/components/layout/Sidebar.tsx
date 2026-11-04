@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { Command, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { NavLink } from 'react-router';

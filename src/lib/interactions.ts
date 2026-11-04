@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /* Delegated micro-interactions, installed once at start-up:
    - ripple: a Material-style ink ripple from the touch point on [data-ripple]
    - spotlight: pointer-following light on [data-spotlight] cards (desktop only)

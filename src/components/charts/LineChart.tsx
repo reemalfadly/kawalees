@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useId, useMemo, useState } from 'react';
 import { diffDays, formatDate, fromDayKey } from '@/lib/dates';
 import { formatCompact, formatNumber } from '@/lib/format';

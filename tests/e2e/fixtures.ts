@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { expect, test as base, type Page } from '@playwright/test';
 
 /* Every e2e test fails if the page throws or logs an error — the same errors the

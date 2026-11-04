@@ -1,54 +1,158 @@
 <div align="center">
 
-<img src="public/pwa-192.png" width="96" height="96" alt="أيقونة كواليس">
+<img src=".github/readme/banner.png" alt="كواليس · استوديو صانع المحتوى" width="100%">
+
+<br>
+
+[![الإصدار](https://img.shields.io/github/v/release/reemalfadly/kawalees?style=for-the-badge&color=FF5A3C&labelColor=1a1620&label=%D8%A7%D9%84%D8%A5%D8%B5%D8%AF%D8%A7%D8%B1)](https://github.com/reemalfadly/kawalees/releases/latest)
+[![مجاني](https://img.shields.io/badge/%D9%85%D8%AC%D8%A7%D9%86%D9%8A-100%25-FF3D7F?style=for-the-badge&labelColor=1a1620)](#-الرخصة-والحقوق)
+[![المنصات](https://img.shields.io/badge/Windows%20%C2%B7%20Mac%20%C2%B7%20Android%20%C2%B7%20Linux%20%C2%B7%20Web-7B3DFF?style=for-the-badge&labelColor=1a1620)](#-تحميل-البرنامج)
+[![بدون حسابات](https://img.shields.io/badge/%D8%A8%D9%8A%D8%A7%D9%86%D8%A7%D8%AA%D9%83%20%D8%B9%D9%84%D9%89%20%D8%AC%D9%87%D8%A7%D8%B2%D9%83-28C840?style=for-the-badge&labelColor=1a1620)](#-أسئلة-شائعة)
 
 # كواليس
 
-**استوديو صانع المحتوى: من الفكرة إلى النشر، في مكان واحد**
+### استوديو صانع المحتوى: من الفكرة إلى النشر، في مكان واحد
 
-By: **Eng.Reem Alfadly**
+الأفكار · السكريبتات · جدول النشر · الأرقام · **وتيليبرومبتر يتبع صوتك**
+
+**By: Eng.Reem Alfadly**
+
+<br>
 
 ### ⬇️ تحميل البرنامج
 
-[**ويندوز**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Windows-Setup.exe) ·
-[**ماك**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Mac.dmg) ·
-[**أندرويد**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Android.apk) ·
-[**لينكس**](https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Linux.AppImage)
+<a href="https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Windows-Setup.exe"><img src="https://img.shields.io/badge/%F0%9F%AA%9F%20Windows-%D8%AA%D8%AD%D9%85%D9%8A%D9%84-FF5A3C?style=for-the-badge&labelColor=1a1620" alt="تحميل ويندوز"></a>
+<a href="https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Mac.dmg"><img src="https://img.shields.io/badge/%F0%9F%8D%8E%20Mac-%D8%AA%D8%AD%D9%85%D9%8A%D9%84-FF3D7F?style=for-the-badge&labelColor=1a1620" alt="تحميل ماك"></a>
+<a href="https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Android.apk"><img src="https://img.shields.io/badge/%F0%9F%A4%96%20Android-%D8%AA%D8%AD%D9%85%D9%8A%D9%84-7B3DFF?style=for-the-badge&labelColor=1a1620" alt="تحميل أندرويد"></a>
+<a href="https://github.com/reemalfadly/kawalees/releases/latest/download/Kawalees-Linux.AppImage"><img src="https://img.shields.io/badge/%F0%9F%90%A7%20Linux-%D8%AA%D8%AD%D9%85%D9%8A%D9%84-4A90FF?style=for-the-badge&labelColor=1a1620" alt="تحميل لينكس"></a>
 
-أو [**فتحه من المتصفح**](https://reemalfadly.github.io/kawalees/) بدون تحميل (والطريقة الوحيدة للآيفون والآيباد)
+<br>
 
-مجاني · بالعربي · يشتغل بدون إنترنت · بياناتك على جهازك وبس
+📱 **آيفون وآيباد، أو بدون تحميل:** [افتحه من المتصفح](https://reemalfadly.github.io/kawalees/) وثبّته على الشاشة الرئيسية
 
 </div>
 
+---
+
+## 🎙️ المزايا الأبرز: شاشة المذيعين اللي تسمعك
+
+<table>
+<tr>
+<td width="62%" valign="top">
+
+المذيع ما يحفظ ولا كلمة: **الكلام يمشي قدامه وهو يقرأ.**
+هذي الشاشة صارت بكواليس، بدون شراء شاشة ثانية.
+
+- 🗣️ **يتبع صوتك:** القراءة بصوت عالٍ، والسكريبت يمشي معها كلمة كلمة.
+- ⏸️ **يقف لما الصوت يقف**، ويكمل لما ترجع القراءة.
+- ✨ **الكلمة الحالية تضوي** والكلمات اللي انقالت تبهت.
+- 🎚️ بدائل جاهزة: **سرعة ثابتة**، وحجم الخط، ووضع المرآة.
+- 🎬 مصمم لوقت تصوير الريلز والفيديوهات.
+
+> **ملاحظة صدق:** «يتبع الصوت» يشتغل في **Chrome و Safari** (نسخة المتصفح)، ويحتاج إنترنت وإذن المايكروفون. في البرنامج المحمّل، وضع التصوير يشتغل بالسرعة الثابتة.
+
+</td>
+<td width="38%" align="center">
+<img src=".github/readme/voice-teleprompter.jpg" width="250" alt="وضع التصوير يتبع الصوت">
+</td>
+</tr>
+</table>
+
+---
+
+## ✨ كل شغل صانع المحتوى في مكان واحد
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 💡 بنك الأفكار
+
+تسجيل أي فكرة بثانية. بحث يفهم الكتابة العربية بأي شكل (أداة = اداة).
+
+</td>
+<td width="50%" valign="top">
+
+### 🗂️ لوحة المراحل
+
+فكرة ← كتابة ← تصوير ← مونتاج ← جاهز ← منشور، والبطاقات تنسحب بين المراحل.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### ✍️ محرر السكريبت
+
+خطّاف، ومحتوى، ودعوة للتفاعل، مع قوالب جاهزة وحساب مدة الكلام.
+
+</td>
+<td valign="top">
+
+### 📅 التقويم
+
+جدول النشر الشهري بالسحب والإفلات.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 📈 الأرقام والإنجازات
+
+نمو المتابعين، والنشر الأسبوعي، وسلسلة أيام الإبداع، ومستويات و12 إنجاز.
+
+</td>
+<td valign="top">
+
+### 🎞️ ملخص الشهر
+
+قصة بشكل ستوري جاهزة للمشاركة.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🎨 ألوان ووضعين
+
+وضع داكن وفاتح، وخمسة ألوان للتطبيق.
+
+</td>
+<td valign="top">
+
+### 🔒 خصوصية كاملة
+
+بياناتك على جهازك فقط. بدون حساب، وبدون سيرفر، وبدون تتبع.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🖼️ لقطات من البرنامج
+
 <p align="center">
-  <img src="public/screenshots/phone-home.jpg" width="200" alt="الشاشة الرئيسية على الجوال">
-  <img src="public/screenshots/phone-board.jpg" width="200" alt="لوحة المراحل على الجوال">
-  <img src="public/screenshots/phone-stats.jpg" width="200" alt="الأرقام والإنجازات على الجوال">
+  <img src=".github/readme/board-desktop.jpg" width="92%" alt="لوحة المراحل على الكمبيوتر">
 </p>
 
 <p align="center">
-  <img src="public/screenshots/desktop-home.jpg" width="820" alt="كواليس على شاشة الكمبيوتر">
+  <img src=".github/readme/home.jpg" width="19%" alt="الشاشة الرئيسية">
+  <img src=".github/readme/editor.jpg" width="19%" alt="محرر السكريبت">
+  <img src=".github/readme/board.jpg" width="19%" alt="لوحة المراحل">
+  <img src=".github/readme/stats.jpg" width="19%" alt="الأرقام والإنجازات">
+  <img src=".github/readme/recap.jpg" width="19%" alt="ملخص الشهر">
+</p>
+
+<p align="center">
+  <img src=".github/readme/home-light.jpg" width="46%" alt="الوضع الفاتح على الكمبيوتر">
+  <img src=".github/readme/themes.jpg" width="17%" alt="ألوان التطبيق">
 </p>
 
 ---
 
-## شنو كواليس؟
-
-تطبيق يجمع شغل صانع المحتوى كله: **الأفكار، والسكريبتات، وجدول النشر، والأرقام**.
-
-- **بنك الأفكار:** تسجيل أي فكرة بثانية، وبحث يفهم الكتابة العربية بأي شكل (أداة = اداة).
-- **لوحة المراحل:** فكرة ← كتابة ← تصوير ← مونتاج ← جاهز ← منشور، والبطاقات تنسحب بين المراحل.
-- **محرر السكريبت:** خطّاف، ومحتوى، ودعوة للتفاعل، مع قوالب جاهزة وحساب مدة الكلام.
-- **وضع التصوير (تيليبرومبتر):** السكريبت ينزل على الشاشة وقت التصوير، بسرعة ثابتة أو **يتبع الصوت** مع كل كلمة تنقال (كروم وسفاري).
-- **التقويم:** جدول النشر الشهري بالسحب والإفلات.
-- **الأرقام:** نمو المتابعين، والنشر الأسبوعي، وسلسلة أيام الإبداع، والمستويات، و12 إنجاز.
-- **ملخص الشهر:** قصة بشكل ستوري جاهزة للمشاركة.
-- **وضع داكن وفاتح**، وخمسة ألوان للتطبيق.
-
----
-
-## تحميل البرنامج على الجهاز
+## 📥 تحميل البرنامج
 
 كواليس **برنامج كامل** ينزل على الجهاز ويفتح من سطح المكتب أو قائمة التطبيقات، ويشتغل بدون إنترنت.
 
@@ -63,11 +167,17 @@ By: **Eng.Reem Alfadly**
 > التنبيهات اللي تطلع أول مرة في ويندوز وماك طبيعية لأي برنامج جديد من خارج المتاجر، وتطلع مرة وحدة بس.
 > كل الإصدارات في صفحة [Releases](https://github.com/reemalfadly/kawalees/releases).
 
-**ملاحظة:** وضع التصوير «يتبع الصوت» يشتغل في نسخة المتصفح (Chrome و Safari). في البرنامج المحمّل، وضع التصوير يشتغل بالسرعة الثابتة.
+### 🔐 التحقق من أصل الملف
+
+كل ملف تحميل له **توقيع بناء مشفر** من GitHub (Attestation) يثبت إنه انبنى من هذا المستودع. للتحقق (من الإصدار 1.4.0 وطالع):
+
+```
+gh attestation verify Kawalees-Windows-Setup.exe --repo reemalfadly/kawalees
+```
 
 ---
 
-## التثبيت من المتصفح
+## 🌐 التثبيت من المتصفح
 
 طريقة ثانية بدون تحميل أي ملف: كواليس **تطبيق ويب قابل للتثبيت (PWA)**.
 يتثبت من المتصفح بدقيقة، وبعدها يفتح من الشاشة الرئيسية مثل أي تطبيق، بنافذة خاصة فيه وبدون شريط المتصفح.
@@ -116,7 +226,9 @@ By: **Eng.Reem Alfadly**
 
 ---
 
-## أسئلة شائعة
+---
+
+## ❓ أسئلة شائعة
 
 **هل التطبيق مجاني؟**
 
@@ -150,7 +262,9 @@ By: **Eng.Reem Alfadly**
 
 ---
 
-## الرخصة والحقوق
+---
+
+## 📜 الرخصة والحقوق
 
 كواليس **مجاني للاستخدام** على أي عدد من الأجهزة، للاستخدام الشخصي أو المهني.
 
@@ -158,3 +272,11 @@ By: **Eng.Reem Alfadly**
 - ممنوع بيع البرنامج، أو إعادة نشره أو نسخه أو تعديله باسم آخر، بدون إذن مكتوب.
 - مشاركة رابط هذي الصفحة مرحب فيها.
 - النص الكامل في ملف [LICENSE](LICENSE).
+
+<div align="center">
+
+<br>
+
+**كواليس** · By: **Eng.Reem Alfadly**
+
+</div>

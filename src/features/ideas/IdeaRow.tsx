@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { CalendarClock, ChevronLeft, Flame } from 'lucide-react';
 import { Link } from 'react-router';
 import { PlatformStack } from '@/components/ui/PlatformIcon';

@@ -1,4 +1,6 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { db } from './db';
+import { invisibleMark, PROVENANCE } from './provenance';
 import { backupSchema } from './schema';
 import type { Backup, Snapshot, SnapshotReason } from './types';
 
@@ -18,6 +20,8 @@ export async function exportBackup(): Promise<Backup> {
   ]);
   return {
     app: 'kawalees',
+    author: PROVENANCE.author,
+    mark: invisibleMark(),
     schema: 1,
     exportedAt: new Date().toISOString(),
     data: { ideas, pillars, stats, activity, settings: settings ?? null },

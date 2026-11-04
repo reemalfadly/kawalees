@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /* Number formatting: Western digits, Arabic grouping, compact for big values. */
 
 const compact = new Intl.NumberFormat('ar-KW-u-nu-latn', {

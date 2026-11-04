@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /* Date helpers built on Intl so Arabic month and weekday names come from the
    platform. Day keys are local calendar days ("2026-09-28"), never UTC, so a
    post scheduled for today stays on today in every time zone. */

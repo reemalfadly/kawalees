@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useEffect } from 'react';
 import type { AccentId, ThemePref } from '@/lib/types';
 

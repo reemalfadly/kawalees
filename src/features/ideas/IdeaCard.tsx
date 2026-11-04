@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { MoreHorizontal, PenLine } from 'lucide-react';
 import { useCallback, useRef, type CSSProperties, type HTMLAttributes } from 'react';
 import { Link } from 'react-router';

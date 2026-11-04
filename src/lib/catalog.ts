@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import type { AccentId, Format, PlatformId, Stage } from './types';
 
 /* Static product content: labels, colours and the creative prompt library. */

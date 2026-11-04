@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 // Installs a git pre-commit hook that runs the fast checks (types, lint, format,
 // unit tests) whenever a commit touches the app. Runs on `npm install` via the
 // "prepare" script; does nothing in CI or outside a git checkout.

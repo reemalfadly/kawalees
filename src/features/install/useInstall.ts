@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useEffect, useState } from 'react';
 
 /* Install state: whether we're already running as an installed app, and the

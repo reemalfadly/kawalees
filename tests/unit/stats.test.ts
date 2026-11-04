@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { describe, expect, it } from 'vitest';
 import { buildIdea } from '@/lib/repo';
 import {

@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import {
   Bug,
   Check,
@@ -51,6 +52,7 @@ import { formatNumber, plural, WORDS } from '@/lib/format';
 import { deletePillar, savePillar, updateSettings } from '@/lib/repo';
 import { isDemoData } from '@/lib/seed';
 import { AUTHOR, COPYRIGHT, LINKS } from '@/lib/about';
+import { invisibleMark } from '@/lib/provenance';
 import { trackError } from '@/lib/tracker';
 import { ACCENTS, PLATFORMS, type SnapshotReason } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
@@ -800,7 +802,7 @@ function About() {
         ))}
       </div>
       <p className="text-xs text-ink-3">
-        <span dir="ltr">{COPYRIGHT}</span> · جميع الحقوق محفوظة
+        <span dir="ltr">{COPYRIGHT}</span> · جميع الحقوق محفوظة{invisibleMark()}
       </p>
     </section>
   );

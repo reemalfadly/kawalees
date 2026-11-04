@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useMemo } from 'react';
 import { startOfWeek, toDayKey, todayKey } from '@/lib/dates';
 import {

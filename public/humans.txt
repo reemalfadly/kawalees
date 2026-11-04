@@ -1,0 +1,9 @@
+/* TEAM */
+Author: Eng.Reem Alfadly
+Site: https://github.com/reemalfadly/kawalees
+
+/* THE WORK */
+Name: Kawalees (كواليس) — the creator studio
+Id: KWL-RA-26E442F3
+Copyright: © 2026 Eng.Reem Alfadly. All rights reserved.
+Licence: https://github.com/reemalfadly/kawalees/blob/main/LICENSE

@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useEffect, useRef } from 'react';
 import { useSettings } from '@/hooks/data';
 import { useUI } from '@/store/ui';

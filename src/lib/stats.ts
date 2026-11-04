@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { addDaysKey, diffDays, fromDayKey, startOfWeek, toDayKey, type WeekStart } from './dates';
 import { scriptWords } from './script';
 import { PLATFORMS, STAGES, type Idea, type PlatformId, type Stage, type StatEntry } from './types';

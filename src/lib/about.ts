@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /* Ownership and links shown in the app, the installers and the README. One place to change them. */
 
 export const AUTHOR = 'Eng.Reem Alfadly';

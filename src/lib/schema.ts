@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { z } from 'zod';
 import { ACCENTS, FORMATS, PLATFORMS, STAGES, THEMES } from './types';
 
@@ -66,6 +67,9 @@ export const settingsSchema = z.object({
 
 export const backupSchema = z.object({
   app: z.literal('kawalees'),
+  // Who made the app; older backup files don't have these.
+  author: z.string().optional(),
+  mark: z.string().optional(),
   schema: z.literal(1),
   exportedAt: z.string(),
   data: z.object({

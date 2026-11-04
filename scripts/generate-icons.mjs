@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 // Renders the app icon SVG into every PNG size the PWA and iOS need.
 // Run with: npm run icons   (uses the Chromium that Playwright already has)
 import { mkdirSync, writeFileSync } from 'node:fs';

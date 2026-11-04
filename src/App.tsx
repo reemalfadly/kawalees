@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { lazy, Suspense, useEffect } from 'react';
 import { Route, Routes } from 'react-router';
 import { AppShell, RouteFallback } from '@/components/layout/AppShell';

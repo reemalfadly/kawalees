@@ -1,13 +1,34 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version: string;
 };
+
+// Stamps every JS and CSS file of the build with the author's notice (the `/*!` form survives
+// minifying), so a copied bundle carries it.
+const NOTICE =
+  '/*! Kawalees · © 2026 Eng.Reem Alfadly · All rights reserved · KWL-RA-26E442F3 · https://github.com/reemalfadly/kawalees */\n';
+function stamp(): Plugin {
+  return {
+    name: 'kawalees-stamp',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      for (const file of Object.values(bundle)) {
+        if (file.type === 'chunk' && file.fileName.endsWith('.js')) {
+          file.code = NOTICE + file.code;
+        } else if (file.type === 'asset' && file.fileName.endsWith('.css')) {
+          file.source = NOTICE + String(file.source);
+        }
+      }
+    },
+  };
+}
 
 // A relative base plus hash routing lets the same build run from GitHub Pages,
 // a sub-folder, or a local file server without any rewrite rules.
@@ -25,6 +46,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
+    stamp(),
     VitePWA({
       // No service worker for hosts that don't allow one (preview-artifact) or don't need one:
       // the desktop and Android apps already ship every file inside the app.

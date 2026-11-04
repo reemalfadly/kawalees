@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 // Captures the store-style screenshots shown in the install dialog on Android
 // and desktop (manifest "screenshots"). Run after `npm run build`:
 //   npm run screenshots

@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { X } from 'lucide-react';
 import { AnimatePresence, motion, useDragControls } from 'motion/react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';

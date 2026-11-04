@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /** Arabic-aware normalisation so "اداة" finds "أداة" and "فكره" finds "فكرة". */
 export function normalizeArabic(s: string): string {
   return s

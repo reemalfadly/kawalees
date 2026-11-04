@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /* Light haptic ticks where the platform supports them (Android, some desktops).
    iOS Safari ignores vibrate(), so these are always optional polish. */
 

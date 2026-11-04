@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import type { Idea } from './types';
 
 /* Script maths: word counts and how long a script takes to say out loud. */

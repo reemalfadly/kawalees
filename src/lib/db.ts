@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import Dexie, { type EntityTable } from 'dexie';
 import type { ActivityDay, ErrorEntry, Idea, Pillar, Settings, Snapshot, StatEntry } from './types';
 

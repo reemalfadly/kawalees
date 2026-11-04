@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { motion } from 'motion/react';
 import { cn } from '@/lib/cn';
 import { haptics } from '@/lib/haptics';

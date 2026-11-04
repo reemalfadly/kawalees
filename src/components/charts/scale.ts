@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /* Tiny scale helpers so charts don't need a charting library. */
 
 export function niceStep(range: number, targetTicks = 4): number {

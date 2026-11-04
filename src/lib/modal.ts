@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 /* Counts open modal sheets so global keyboard shortcuts stay quiet while one is
    open, and drives the iOS "page steps back" effect behind sheets on phones. */
 

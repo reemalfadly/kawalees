@@ -14,6 +14,9 @@ on:
 
 permissions:
   contents: write
+  # Signed build provenance: ties each download to this repository and commit.
+  id-token: write
+  attestations: write
 
 jobs:
   version:
@@ -119,6 +122,11 @@ jobs:
         with:
           path: out
           merge-multiple: true
+      # A signed record, made by GitHub, that these exact files were built from this repository.
+      # Anyone can check a download with:  gh attestation verify <file> --repo reemalfadly/kawalees
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: out/*
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}

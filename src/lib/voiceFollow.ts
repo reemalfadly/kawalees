@@ -1,3 +1,4 @@
+// © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { normalizeArabic } from './text';
 
 /* Voice-follow for the teleprompter: works out how far into the script the
