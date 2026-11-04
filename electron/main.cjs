@@ -58,6 +58,14 @@ function createWindow() {
   void win.loadURL(START);
 }
 
+app.setAboutPanelOptions({
+  applicationName: 'Kawalees · كواليس',
+  applicationVersion: app.getVersion(),
+  copyright: '© 2026 Eng.Reem Alfadly. All rights reserved.',
+  credits: 'By: Eng.Reem Alfadly',
+  website: 'https://github.com/reemalfadly/kawalees',
+});
+
 app.whenReady().then(() => {
   protocol.handle('app', (request) => {
     const { pathname } = new URL(request.url);

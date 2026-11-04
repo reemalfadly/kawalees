@@ -2,7 +2,7 @@
 # on every version tag; file names stay fixed so "latest" download links never change.
 appId: com.reemalfadly.kawalees
 productName: Kawalees
-copyright: Copyright © 2026 Eng. Reem Alfadly
+copyright: © 2026 Eng.Reem Alfadly. All rights reserved.
 directories:
   output: release
   buildResources: build
@@ -10,6 +10,7 @@ files:
   - dist/**/*
   - electron/**/*
   - build/icon.png
+  - LICENSE
   - package.json
   - '!node_modules/**/*'
 asar: true
@@ -25,6 +26,8 @@ nsis:
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: Kawalees
+  # The installer shows the licence and asks for agreement before installing.
+  license: LICENSE
 mac:
   target:
     - target: dmg

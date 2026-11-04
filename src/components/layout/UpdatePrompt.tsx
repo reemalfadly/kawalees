@@ -2,7 +2,6 @@ import { RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { trackError } from '@/lib/tracker';
 import { toast } from '@/store/ui';
 import { Button } from '../ui/Button';
 
@@ -15,7 +14,9 @@ export function UpdatePrompt() {
     offlineReady: [offlineReady, setOfflineReady],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegisterError: (e) => void trackError(e, 'manual'),
+    // Where service workers are blocked (private windows, some policies) the app still runs, just
+    // without offline support, so that isn't recorded as an app error in Settings → Diagnostics.
+    onRegisterError: (e) => console.warn('[kawalees] offline support unavailable:', e),
     onRegisteredSW: (_url, registration) => {
       // Check for a fresh version every hour while the app stays open.
       if (registration)

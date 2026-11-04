@@ -50,6 +50,7 @@ import { formatDate, todayKey } from '@/lib/dates';
 import { formatNumber, plural, WORDS } from '@/lib/format';
 import { deletePillar, savePillar, updateSettings } from '@/lib/repo';
 import { isDemoData } from '@/lib/seed';
+import { AUTHOR, COPYRIGHT, LINKS } from '@/lib/about';
 import { trackError } from '@/lib/tracker';
 import { ACCENTS, PLATFORMS, type SnapshotReason } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
@@ -575,17 +576,7 @@ export default function SettingsPage() {
         </Section>
       </div>
 
-      <footer className="mt-12 flex flex-col items-center gap-3 text-center">
-        <LogoMark size={44} />
-        <p className="font-display text-lg font-semibold text-ink">كواليس</p>
-        <p className="text-xs text-ink-3">
-          استوديو صانع المحتوى · يشتغل بدون إنترنت · بياناتك على جهازك
-        </p>
-        <p className="text-xs text-ink-3">
-          الإصدار <span className="num">{__APP_VERSION__}</span> ·{' '}
-          <span dir="ltr">By: Eng.Reem Alfadly</span>
-        </p>
-      </footer>
+      <About />
 
       <Sheet
         open={confirm !== null}
@@ -764,5 +755,53 @@ function InstallSection() {
     >
       <InstallGuide compact />
     </Section>
+  );
+}
+
+/* About: who made كواليس, the version, privacy in one line, and the official links. */
+function About() {
+  const links = [
+    { href: LINKS.home, label: 'صفحة البرنامج' },
+    { href: LINKS.releases, label: 'آخر إصدار' },
+    { href: LINKS.license, label: 'الرخصة' },
+  ];
+  return (
+    <section
+      aria-labelledby="about-title"
+      className="mt-10 flex flex-col items-center gap-4 rounded-[28px] border border-line bg-surface/60 px-6 py-9 text-center shadow-elev-1"
+    >
+      <LogoMark size={64} />
+      <div className="flex flex-col items-center gap-1">
+        <h2 id="about-title" className="font-display text-2xl font-semibold text-ink">
+          حول كواليس
+        </h2>
+        <p className="text-sm text-ink-3">
+          استوديو صانع المحتوى · الإصدار <span className="num">{__APP_VERSION__}</span>
+        </p>
+      </div>
+      <p dir="ltr" className="font-display text-lg font-semibold text-ink">
+        By: <span className="text-gradient">{AUTHOR}</span>
+      </p>
+      <p className="max-w-md text-sm leading-6 text-ink-2">
+        كل البيانات محفوظة على هالجهاز فقط. ما في حسابات، ولا إعلانات، ولا تتبع.
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {links.map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            target="_blank"
+            rel="noreferrer"
+            data-ripple
+            className="inline-flex h-9 items-center rounded-full border border-line px-4 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            {l.label}
+          </a>
+        ))}
+      </div>
+      <p className="text-xs text-ink-3">
+        <span dir="ltr">{COPYRIGHT}</span> · جميع الحقوق محفوظة
+      </p>
+    </section>
   );
 }

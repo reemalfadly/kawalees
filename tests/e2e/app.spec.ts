@@ -4,6 +4,7 @@ test.describe('first run', () => {
   test('onboarding sets up the studio', async ({ page, errors: _errors }) => {
     await page.goto('./');
     await expect(page.getByRole('heading', { name: /أهلاً في/ })).toBeVisible();
+    await expect(page.getByText('By: Eng.Reem Alfadly')).toBeVisible();
     // A real product: nothing on the first screen talks about trial or sample data.
     await expect(page.getByText(/تجريبي/)).toHaveCount(0);
     await page.getByRole('button', { name: 'يلا نبدأ' }).click();
@@ -123,6 +124,16 @@ test.describe('settings', () => {
     await expect(page.locator('html')).toHaveAttribute('data-accent', 'mint');
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  });
+
+  test('about shows the author and rights', async ({ page, errors: _errors }) => {
+    await startWithDemo(page);
+    await page.goto('./#/settings');
+    const about = page.getByRole('region', { name: 'حول كواليس' });
+    await about.scrollIntoViewIfNeeded();
+    await expect(about.getByText('Eng.Reem Alfadly').first()).toBeVisible();
+    await expect(about.getByText(/جميع الحقوق محفوظة/)).toBeVisible();
+    await expect(about.getByRole('link', { name: 'الرخصة' })).toHaveAttribute('href', /LICENSE/);
   });
 
   test('the error tracker starts clean', async ({ page, errors: _errors }) => {

@@ -36,7 +36,8 @@ export default defineConfig(({ mode }) => ({
         id: './',
         name: 'كواليس — استوديو صانع المحتوى',
         short_name: 'كواليس',
-        description: 'استوديو صانع المحتوى: أفكارك وسكريبتاتك وجدول نشرك وأرقامك في مكان واحد.',
+        description:
+          'استوديو صانع المحتوى: الأفكار والسكريبتات وجدول النشر والأرقام في مكان واحد. By: Eng.Reem Alfadly',
         lang: 'ar',
         dir: 'rtl',
         start_url: './',

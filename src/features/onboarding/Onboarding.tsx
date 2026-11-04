@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/Field';
 import { GlyphTile } from '@/components/ui/GlyphTile';
 import { LogoMark } from '@/components/ui/Logo';
 import { PlatformDot } from '@/components/ui/PlatformIcon';
+import { AUTHOR } from '@/lib/about';
 import { AVATARS, PLATFORM_META } from '@/lib/catalog';
 import { cn } from '@/lib/cn';
 import { haptics } from '@/lib/haptics';
@@ -337,6 +338,11 @@ export default function Onboarding() {
           >
             طريقة تثبيت كواليس على الجوال والكمبيوتر
           </button>
+        )}
+        {step === 0 && (
+          <p dir="ltr" className="mt-1 text-center text-xs text-ink-3">
+            By: {AUTHOR}
+          </p>
         )}
       </div>
     </div>
