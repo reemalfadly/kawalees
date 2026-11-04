@@ -44,8 +44,7 @@ for (const s of shots) {
     serviceWorkers: 'block',
   });
   const page = await context.newPage();
-  await page.goto(base);
-  await page.getByRole('button', { name: 'تجربة التطبيق ببيانات تجريبية' }).click();
+  await page.goto(base + '#/?demo=1');
   await page.getByRole('heading', { name: /أهلاً في/ }).waitFor({ state: 'detached' });
   // Hide the install and demo notices: the screenshots show the app itself.
   await page.evaluate(() => {

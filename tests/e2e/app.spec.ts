@@ -4,6 +4,8 @@ test.describe('first run', () => {
   test('onboarding sets up the studio', async ({ page, errors: _errors }) => {
     await page.goto('./');
     await expect(page.getByRole('heading', { name: /أهلاً في/ })).toBeVisible();
+    // A real product: nothing on the first screen talks about trial or sample data.
+    await expect(page.getByText(/تجريبي/)).toHaveCount(0);
     await page.getByRole('button', { name: 'يلا نبدأ' }).click();
 
     await page.getByRole('textbox', { name: 'الاسم' }).fill('ريم');
@@ -19,6 +21,7 @@ test.describe('first run', () => {
 
     await expect(page.getByRole('heading', { level: 1 })).toContainText('ريم');
     await expect(page.getByText('هدف النشر الأسبوعي')).toBeVisible();
+    await expect(page.getByText(/تجريبي/)).toHaveCount(0);
   });
 });
 

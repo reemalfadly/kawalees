@@ -17,8 +17,8 @@ export const test = base.extend<{ errors: string[] }>({
 export { expect };
 
 export async function startWithDemo(page: Page) {
-  await page.goto('./');
-  await page.getByRole('button', { name: 'تجربة التطبيق ببيانات تجريبية' }).click();
+  // Hidden presentation mode loads the sample month without any button in the UI.
+  await page.goto('./#/?demo=1');
   // Onboarding has its own h1, so wait for it to go and the app navigation to arrive.
   await expect(page.getByRole('heading', { name: /أهلاً في/ })).toHaveCount(0);
   await expect(

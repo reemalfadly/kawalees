@@ -10,7 +10,8 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { GlyphTile } from '@/components/ui/GlyphTile';
@@ -79,10 +80,13 @@ export default function Onboarding() {
     haptics.success();
   };
 
-  const demo = async () => {
-    setBusy(true);
-    await loadDemoData();
-  };
+  // Presentation mode, never shown in the UI: #/?demo=1 opens with a month of sample work
+  // (used for screenshots, live demos and the end-to-end tests).
+  const [params] = useSearchParams();
+  const presentation = params.get('demo') === '1';
+  useEffect(() => {
+    if (presentation) void loadDemoData();
+  }, [presentation]);
 
   const canNext = step !== 2 || platforms.length > 0;
 
@@ -323,11 +327,6 @@ export default function Onboarding() {
         ) : (
           <Button variant="primary" size="lg" block disabled={busy} onClick={finish}>
             يلا نبدع 🚀
-          </Button>
-        )}
-        {step === 0 && (
-          <Button variant="ghost" block disabled={busy} onClick={demo}>
-            تجربة التطبيق ببيانات تجريبية
           </Button>
         )}
         {step === 0 && (

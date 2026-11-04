@@ -49,7 +49,7 @@ import { db } from '@/lib/db';
 import { formatDate, todayKey } from '@/lib/dates';
 import { formatNumber, plural, WORDS } from '@/lib/format';
 import { deletePillar, savePillar, updateSettings } from '@/lib/repo';
-import { isDemoData, loadDemoData } from '@/lib/seed';
+import { isDemoData } from '@/lib/seed';
 import { trackError } from '@/lib/tracker';
 import { ACCENTS, PLATFORMS, type SnapshotReason } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
@@ -498,26 +498,8 @@ export default function SettingsPage() {
             )}
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-2.5 border-t border-line pt-5">
-            <Button
-              variant="ghost"
-              icon={<FlaskConical size={17} />}
-              onClick={() =>
-                setConfirm({
-                  title: 'تحميل بيانات تجريبية؟',
-                  description:
-                    'بتنضاف أفكار وأرقام تجريبية مكان الحالية، مفيدة للتجربة أو التصوير. قبلها ناخذ نسخة من الحالي.',
-                  action: 'تحميل',
-                  run: async () => {
-                    await takeSnapshot('before-demo');
-                    await loadDemoData();
-                    toast({ title: 'انضافت البيانات التجريبية', tone: 'success' });
-                  },
-                })
-              }
-            >
-              بيانات تجريبية
-            </Button>
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5">
+            <p className="text-xs text-ink-3">البداية من جديد بدون أي بيانات</p>
             <Button
               variant="danger"
               icon={<Trash2 size={17} />}
@@ -598,6 +580,10 @@ export default function SettingsPage() {
         <p className="font-display text-lg font-semibold text-ink">كواليس</p>
         <p className="text-xs text-ink-3">
           استوديو صانع المحتوى · يشتغل بدون إنترنت · بياناتك على جهازك
+        </p>
+        <p className="text-xs text-ink-3">
+          الإصدار <span className="num">{__APP_VERSION__}</span> ·{' '}
+          <span dir="ltr">By: Eng.Reem Alfadly</span>
         </p>
       </footer>
 
