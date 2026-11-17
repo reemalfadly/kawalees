@@ -9,12 +9,14 @@ const sizes = {
   md: { box: 'size-10 rounded-xl', icon: 19 },
   lg: { box: 'size-14 rounded-[18px]', icon: 26 },
   xl: { box: 'size-20 rounded-[26px]', icon: 36 },
+  /** 48px: the empty-state icon. */
+  empty: { box: 'size-12 rounded-2xl', icon: 24 },
 };
 
 export function GlyphTile({
   icon: Icon,
-  from = 'var(--accent)',
-  to = 'var(--accent-2)',
+  from,
+  to,
   size = 'md',
   className,
 }: {
@@ -25,17 +27,20 @@ export function GlyphTile({
   className?: string;
 }) {
   const s = sizes[size];
+  const start = from ?? 'var(--accent)';
+  const end = to ?? 'var(--accent-2)';
   return (
     <span
       aria-hidden
       className={cn(
-        'relative inline-flex shrink-0 items-center justify-center text-white',
+        'relative inline-flex shrink-0 items-center justify-center',
+        from || to ? 'text-white' : 'text-on-accent',
         s.box,
         className,
       )}
       style={{
-        backgroundImage: `linear-gradient(145deg, ${from}, ${to})`,
-        boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), inset 0 -1px 0 rgb(0 0 0 / 0.12), 0 8px 20px -10px ${from}`,
+        backgroundImage: `linear-gradient(145deg, ${start}, ${end})`,
+        boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), inset 0 -1px 0 rgb(0 0 0 / 0.12), 0 8px 20px -10px ${start}`,
       }}
     >
       <Icon size={s.icon} strokeWidth={2.1} />

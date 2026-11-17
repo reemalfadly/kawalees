@@ -86,3 +86,49 @@ export function installTracker(): void {
     void trackError(e.reason, 'promise');
   });
 }
+
+const NL = String.fromCharCode(10);
+
+/** A plain-text report of the latest errors for sending to support. It holds technical details
+    only (version, browser, screen, error messages): never the user's ideas or numbers. */
+export async function buildErrorReport(limit = 20): Promise<string> {
+  const rows = await db.errors.orderBy('at').reverse().limit(limit).toArray();
+  const head = [
+    `Kawalees ${__APP_VERSION__} (${__BUILD_TIME__})`,
+    typeof navigator === 'undefined' ? '' : navigator.userAgent,
+    `Errors: ${rows.length}`,
+  ].filter(Boolean);
+  const body = rows.map((e) =>
+    [
+      `— ${new Date(e.at).toISOString()} · ${e.source} · ${e.route || '/'}${e.count > 1 ? ` · x${e.count}` : ''}`,
+      e.message,
+      e.stack.split(NL).slice(0, 6).join(NL),
+    ]
+      .filter(Boolean)
+      .join(NL),
+  );
+  return [...head, '', ...body].join(NL);
+}
+
+/** Copies text to the clipboard, with a fallback for browsers that block the async API. */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}

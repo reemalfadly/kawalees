@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   NotebookPen,
   PlayCircle,
+  Rocket,
   Sparkles,
   Trash2,
   Wand2,
@@ -42,11 +43,12 @@ import {
   STAGE_META,
 } from '@/lib/catalog';
 import { cn } from '@/lib/cn';
-import { formatDate, fromDayKey, relativeDayLabel } from '@/lib/dates';
+import { formatDate, formatScheduleLabel, relativeDayLabel } from '@/lib/dates';
 import { plural, WORDS } from '@/lib/format';
 import { touchActivity, updateIdea } from '@/lib/repo';
 import { countWords, FORMAT_TARGET_SECONDS, formatDuration, speakingSeconds } from '@/lib/script';
 import { nextStage, prevStage } from '@/lib/stats';
+import { HIT_ICON, HIT_LINK } from '@/lib/touch';
 import { trackError } from '@/lib/tracker';
 import { FORMATS, STAGES, type Idea, type PlatformId } from '@/lib/types';
 import { toast } from '@/store/ui';
@@ -64,7 +66,10 @@ export default function IdeaPage() {
           title="الفكرة مو موجودة"
           description="يمكن انحذفت، أو الرابط غلط."
           action={
-            <Link to="/ideas" className="font-semibold text-accent-ink hover:underline">
+            <Link
+              to="/ideas"
+              className={cn('font-semibold text-accent-ink hover:underline', HIT_LINK)}
+            >
               الرجوع للأفكار
             </Link>
           }
@@ -255,8 +260,9 @@ function Editor({ idea }: { idea: Idea }) {
         {idea.publishedAt && (
           <>
             <span aria-hidden>·</span>
-            <span className="text-accent-ink">
-              نزلت {formatDate.dayMonth(new Date(idea.publishedAt))} 🚀
+            <span className="inline-flex items-center gap-1 text-accent-ink">
+              نزلت {formatDate.dayMonth(new Date(idea.publishedAt))}
+              <Rocket size={14} aria-hidden />
             </span>
           </>
         )}
@@ -281,13 +287,13 @@ function Editor({ idea }: { idea: Idea }) {
                   onClick={() => void moveTo(idea, s)}
                   aria-current={current ? 'step' : undefined}
                   className={cn(
-                    'relative flex min-w-[4.25rem] flex-1 flex-col items-center gap-1.5 rounded-2xl px-1 py-2.5 transition-colors',
+                    'relative flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-2xl px-0.5 py-2.5 transition-colors sm:min-w-[4.25rem] sm:px-1',
                     current ? 'bg-surface-3' : 'hover:bg-surface-2',
                   )}
                 >
                   <span
                     className={cn(
-                      'grid size-9 place-items-center rounded-full transition-all duration-300',
+                      'grid size-8 place-items-center rounded-full transition-all duration-300 sm:size-9',
                       current && 'scale-110',
                     )}
                     style={{
@@ -300,7 +306,12 @@ function Editor({ idea }: { idea: Idea }) {
                   >
                     {done ? <Check size={17} strokeWidth={2.6} /> : <Icon size={17} />}
                   </span>
-                  <span className={cn('text-xs font-medium', current ? 'text-ink' : 'text-ink-3')}>
+                  <span
+                    className={cn(
+                      'text-xs font-medium whitespace-nowrap',
+                      current ? 'text-ink' : 'text-ink-3',
+                    )}
+                  >
                     {meta.label}
                   </span>
                 </button>
@@ -331,7 +342,13 @@ function Editor({ idea }: { idea: Idea }) {
               iconEnd={<ArrowLeft size={16} />}
               onClick={() => void moveTo(idea, next)}
             >
-              {next === 'published' ? 'تم النشر 🚀' : `نقل لـ«${STAGE_META[next].label}»`}
+              {next === 'published' ? (
+                <span className="inline-flex items-center gap-1.5">
+                  تم النشر <Rocket size={16} aria-hidden />
+                </span>
+              ) : (
+                `نقل لـ«${STAGE_META[next].label}»`
+              )}
             </Button>
           )}
         </div>
@@ -366,7 +383,7 @@ function Editor({ idea }: { idea: Idea }) {
             hint="شنو المطلوب من المشاهد بعد ما يخلص؟"
             value={draft.cta}
             onChange={(v) => edit('cta', v)}
-            placeholder="احفظ، شارك، علّق…"
+            placeholder="حفظ، مشاركة، تعليق…"
             templates={CTA_TEMPLATES}
             onTemplate={(t) => insertTemplate('cta', t)}
           />
@@ -436,15 +453,21 @@ function Editor({ idea }: { idea: Idea }) {
               />
             </div>
             {idea.scheduledFor ? (
-              <div className="mt-2.5 flex items-center justify-between text-sm">
-                <span className="text-ink-2">
-                  {relativeDayLabel(idea.scheduledFor)} ·{' '}
-                  {formatDate.dayMonth(fromDayKey(idea.scheduledFor))}
+              <div className="mt-2.5 flex items-start justify-between gap-3 text-sm">
+                {/* The native pickers follow the device language; this line spells the choice out in Arabic. */}
+                <span className="text-ink-2" data-testid="schedule-label" aria-live="polite">
+                  {['اليوم', 'بكرة', 'أمس'].includes(relativeDayLabel(idea.scheduledFor)) && (
+                    <span className="text-ink-3">{relativeDayLabel(idea.scheduledFor)} · </span>
+                  )}
+                  {formatScheduleLabel(idea.scheduledFor, idea.scheduledTime)}
                 </span>
                 <button
                   type="button"
                   onClick={() => patch({ scheduledFor: null, scheduledTime: null })}
-                  className="inline-flex items-center gap-1 text-xs text-ink-3 hover:text-bad"
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-1 text-xs text-ink-3 hover:text-bad',
+                    HIT_LINK,
+                  )}
                 >
                   <X size={13} /> إلغاء
                 </button>
@@ -536,7 +559,7 @@ function Editor({ idea }: { idea: Idea }) {
               value={draft.notes}
               onChange={(e) => edit('notes', e.target.value)}
               placeholder="روابط، مراجع، أفكار للتصوير، موسيقى…"
-              className="min-h-28 w-full resize-none rounded-[14px] border border-line bg-surface-2 px-3.5 py-3 text-sm leading-7 text-ink outline-none transition-colors focus:border-accent"
+              className="min-h-28 w-full resize-none rounded-[14px] border border-line bg-surface-2 px-3.5 py-3 text-base leading-7 text-ink outline-none transition-colors focus:border-accent"
             />
           </Card>
         </aside>
@@ -635,7 +658,10 @@ function ScriptSection({
                 <button
                   type="button"
                   {...p}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full bg-accent-soft px-3 text-xs font-semibold text-accent-ink transition-transform active:scale-95"
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 rounded-full bg-accent-soft px-3 text-xs font-semibold text-accent-ink transition-transform active:scale-95',
+                    HIT_ICON,
+                  )}
                 >
                   <Sparkles size={13} />
                   قوالب

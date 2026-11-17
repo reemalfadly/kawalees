@@ -49,7 +49,7 @@ export function DemoBanner({ ideas }: { ideas: readonly Idea[] }) {
             <GlyphTile icon={FlaskConical} from="#fbbf24" to="#f97316" />
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-ink">هذي بيانات تجريبية</p>
-              <p className="text-xs text-ink-3">للتجربة والاستكشاف. البداية الحقيقية بضغطة وحدة</p>
+              <p className="text-xs text-ink-3">للتجربة والاستكشاف. البداية الحقيقية بضغطة واحدة</p>
             </div>
             <div className="flex items-center gap-1.5">
               <Button

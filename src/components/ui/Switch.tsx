@@ -27,7 +27,7 @@ export function Switch({
         onChange(!checked);
       }}
       className={cn(
-        'relative inline-flex h-[31px] w-[51px] shrink-0 items-center rounded-full p-[2px] transition-colors duration-300 disabled:opacity-40',
+        'relative inline-flex h-[31px] w-[51px] shrink-0 items-center rounded-full p-[2px] transition-colors duration-300 disabled:opacity-40 tap:hit-44',
         checked ? 'bg-accent-gradient-strong justify-end' : 'justify-start bg-surface-3',
       )}
     >

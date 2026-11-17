@@ -44,9 +44,9 @@ export class ErrorBoundary extends Component<Props, State> {
         >
           🧯
         </div>
-        <h1 className="font-display text-2xl font-bold text-ink">صار خلل في هالشاشة</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">حدث خلل في هذه الشاشة</h1>
         <p className="mt-2 text-sm leading-6 text-ink-3">
-          بياناتك بأمان، وسجّلنا الخطأ في «التشخيص» داخل الإعدادات. الرجوع والإكمال عادي.
+          بياناتك بأمان، وسُجّل الخطأ في «التشخيص» داخل الإعدادات. يمكن الرجوع والمتابعة بشكل عادي.
         </p>
         <div className="mt-6 flex gap-2">
           <button

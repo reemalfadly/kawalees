@@ -9,6 +9,7 @@ import {
   Monitor,
   MonitorDown,
   Share,
+  ShieldCheck,
   Smartphone,
   SquarePlus,
   WifiOff,
@@ -19,6 +20,7 @@ import { useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { GlyphTile } from '@/components/ui/GlyphTile';
 import { Segmented } from '@/components/ui/Segmented';
+import { OFFLINE_NOTE } from '@/lib/about';
 import { detectPlatform, useInstall, type Platform } from './useInstall';
 
 /* How to put كواليس on any device. Opens on the visitor's own platform, offers
@@ -69,9 +71,14 @@ const GUIDES: Record<Platform, Guide> = {
           </>
         ),
       },
-      { icon: Check, text: <>أيقونة كواليس تطلع مع التطبيقات، وتفتح بشاشة كاملة بدون المتصفح</> },
+      { icon: Check, text: <>تظهر أيقونة كواليس مع التطبيقات، وتفتح بشاشة كاملة دون المتصفح</> },
     ],
-    note: <>من iOS 16.4 وأحدث تنفع نفس الخطوات من Chrome و Edge على الآيفون والآيباد.</>,
+    note: (
+      <>
+        من iOS 16.4 فما فوق تصلح الخطوات نفسها من Chrome وEdge على الآيفون والآيباد. وفي Safari
+        خصوصاً، قد تُنظَّف بيانات الموقع غير المثبّت إذا لم يُفتح أسبوعاً، فالتثبيت يحمي أفكارك.
+      </>
+    ),
   },
   android: {
     label: 'أندرويد',
@@ -85,7 +92,7 @@ const GUIDES: Record<Platform, Guide> = {
       { icon: AppWindow, text: <>فتح رابط كواليس من متصفح {b('Chrome')}</> },
       {
         icon: EllipsisVertical,
-        text: <>يطلع اقتراح التثبيت تحت، أو من القائمة {b('⋮')} فوق</>,
+        text: <>يظهر اقتراح التثبيت في الأسفل، أو من القائمة {b('⋮')} في الأعلى</>,
       },
       {
         icon: Download,
@@ -95,11 +102,9 @@ const GUIDES: Record<Platform, Guide> = {
           </>
         ),
       },
-      { icon: Check, text: <>كواليس ينضاف لقائمة التطبيقات والشاشة الرئيسية</> },
+      { icon: Check, text: <>يُضاف كواليس إلى قائمة التطبيقات والشاشة الرئيسية</> },
     ],
-    note: (
-      <>متصفح Samsung Internet و Edge فيهم نفس الخيار: القائمة ← «إضافة إلى الشاشة الرئيسية».</>
-    ),
+    note: <>في متصفحي Samsung Internet وEdge الخيار نفسه: القائمة ← «إضافة إلى الشاشة الرئيسية».</>,
   },
   windows: {
     label: 'ويندوز',
@@ -134,7 +139,10 @@ const GUIDES: Record<Platform, Guide> = {
           </>
         ),
       },
-      { icon: Check, text: <>كواليس يطلع في قائمة ابدأ، ويتثبت على شريط المهام بنافذة خاصة فيه</> },
+      {
+        icon: Check,
+        text: <>يظهر كواليس في قائمة ابدأ، ويُثبَّت على شريط المهام بنافذة خاصة به</>,
+      },
     ],
   },
   mac: {
@@ -159,7 +167,7 @@ const GUIDES: Record<Platform, Guide> = {
         icon: MonitorDown,
         text: <>أو في Chrome و Edge: أيقونة التثبيت في شريط العنوان</>,
       },
-      { icon: Check, text: <>كواليس يطلع في الـ Dock و Launchpad مثل أي تطبيق</> },
+      { icon: Check, text: <>يظهر كواليس في Dock وLaunchpad مثل أي تطبيق</> },
     ],
   },
 };
@@ -176,12 +184,14 @@ export function InstallGuide({ compact }: { compact?: boolean }) {
     <div className="flex flex-col gap-5">
       {installed ? (
         <div className="flex items-center gap-3 rounded-2xl bg-good/10 p-4 text-sm font-medium text-good">
-          <Check size={20} /> كواليس مثبّت على هالجهاز
+          <Check size={20} /> كواليس مثبّت على هذا الجهاز
         </div>
       ) : (
         canPrompt && (
           <div className="flex flex-col gap-3 rounded-2xl bg-accent-softer p-4 sm:flex-row sm:items-center">
-            <p className="flex-1 text-sm text-ink-2">المتصفح يقدر يثبّت كواليس مباشرة بضغطة وحدة</p>
+            <p className="flex-1 text-sm text-ink-2">
+              يمكن للمتصفح تثبيت كواليس مباشرة بضغطة واحدة
+            </p>
             <Button variant="primary" icon={<Download size={18} />} onClick={() => void prompt()}>
               تثبيت كواليس
             </Button>
@@ -226,7 +236,7 @@ export function InstallGuide({ compact }: { compact?: boolean }) {
           </div>
           {guide.download && !__NATIVE__ && (
             <div className="flex flex-col gap-2 rounded-2xl border border-line p-4">
-              <p className="text-sm text-ink-2">برنامج كامل ينزل على الجهاز ويشتغل بدون متصفح:</p>
+              <p className="text-sm text-ink-2">برنامج كامل يُنزَّل على الجهاز ويعمل دون متصفح:</p>
               <div className="flex flex-wrap items-center gap-3">
                 <a
                   href={RELEASES + guide.download.file}
@@ -248,7 +258,9 @@ export function InstallGuide({ compact }: { compact?: boolean }) {
                   </a>
                 )}
               </div>
-              <p className="text-xs leading-5 text-ink-3">أو التثبيت من المتصفح بالخطوات تحت:</p>
+              <p className="text-xs leading-5 text-ink-3">
+                أو التثبيت من المتصفح بالخطوات التالية:
+              </p>
             </div>
           )}
           <ol className="flex flex-col gap-2.5">
@@ -270,12 +282,21 @@ export function InstallGuide({ compact }: { compact?: boolean }) {
         <ul className="grid gap-2.5 sm:grid-cols-2">
           <li className="flex items-start gap-3 rounded-2xl border border-line p-3 text-sm leading-6 text-ink-2">
             <WifiOff size={18} className="mt-1 shrink-0 text-accent-ink" aria-hidden />
-            بعد التثبيت يشتغل حتى بدون إنترنت، ويتحدث وحده لما تنزل نسخة جديدة
+            <span>{OFFLINE_NOTE}. ويتحدث وحده عند نزول نسخة جديدة.</span>
+          </li>
+          <li className="flex items-start gap-3 rounded-2xl border border-line p-3 text-sm leading-6 text-ink-2 sm:col-span-2">
+            <ShieldCheck size={18} className="mt-1 shrink-0 text-good" aria-hidden />
+            <span>
+              تثبيت التطبيق يحمي أفكارك من الضياع: بياناته أقل عرضة للتنظيف التلقائي، بينما قد
+              تُنظَّف بيانات موقع غير مثبّت (خاصة في Safari).
+            </span>
           </li>
           <li className="flex items-start gap-3 rounded-2xl border border-line p-3 text-sm leading-6 text-ink-2">
             <ArrowLeftRight size={18} className="mt-1 shrink-0 text-accent-ink" aria-hidden />
-            البيانات محفوظة على كل جهاز لحاله. للنقل: الإعدادات ← تصدير نسخة، ثم استيراد في الجهاز
-            الثاني
+            <span>
+              البيانات محفوظة على كل جهاز على حدة. للنقل: الإعدادات ← تصدير نسخة، ثم استيراد في
+              الجهاز الثاني.
+            </span>
           </li>
         </ul>
       )}

@@ -42,7 +42,7 @@ export function Wordmark({ className }: { className?: string }) {
         <span className="font-display text-[1.35rem] font-bold tracking-tight text-ink">
           كواليس
         </span>
-        <span className="mt-1 text-[10px] font-medium tracking-[0.18em] text-ink-3 uppercase">
+        <span className="mt-1 text-xs font-medium tracking-[0.12em] text-ink-3 uppercase">
           Creator Studio
         </span>
       </span>

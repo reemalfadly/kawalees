@@ -241,7 +241,7 @@ export function CommandPalette() {
                 aria-activedescendant={results[active] ? `cmd-${results[active].id}` : undefined}
                 className="h-15 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink-3"
               />
-              <kbd className="hidden rounded-md border border-line px-1.5 py-0.5 text-[11px] text-ink-3 md:inline">
+              <kbd className="hidden rounded-md border border-line px-1.5 py-0.5 text-xs text-ink-3 md:inline">
                 Esc
               </kbd>
             </div>
@@ -284,7 +284,7 @@ export function CommandPalette() {
                         <span className="min-w-0 flex-1 truncate text-[15px]">{c.label}</span>
                         {c.extra}
                         {c.hint && (
-                          <kbd className="rounded-md border border-line px-1.5 text-[11px] text-ink-3">
+                          <kbd className="rounded-md border border-line px-1.5 text-xs text-ink-3">
                             {c.hint}
                           </kbd>
                         )}

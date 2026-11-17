@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addDaysKey,
   diffDays,
+  formatScheduleLabel,
   fromDayKey,
   greeting,
   monthGrid,
@@ -69,5 +70,21 @@ describe('greeting', () => {
     expect(greeting(new Date(2026, 0, 1, 8)).text).toBe('صباح الخير');
     expect(greeting(new Date(2026, 0, 1, 19)).text).toBe('مساء الخير');
     expect(greeting(new Date(2026, 0, 1, 2)).emoji).toBe('✨');
+  });
+
+  it('names the part of the day so the screen can pick a line icon', () => {
+    expect(greeting(new Date(2026, 0, 1, 8)).period).toBe('morning');
+    expect(greeting(new Date(2026, 0, 1, 13)).period).toBe('noon');
+    expect(greeting(new Date(2026, 0, 1, 19)).period).toBe('evening');
+    expect(greeting(new Date(2026, 0, 1, 2)).period).toBe('night');
+  });
+});
+
+describe('formatScheduleLabel', () => {
+  it('spells the day and time in Arabic with Western digits', () => {
+    // 2026-11-20 is a Friday.
+    expect(formatScheduleLabel('2026-11-20')).toBe('الجمعة 20 نوفمبر');
+    expect(formatScheduleLabel('2026-11-20', '21:30')).toBe('الجمعة 20 نوفمبر · 9:30 م');
+    expect(formatScheduleLabel('2026-11-20', null)).toBe('الجمعة 20 نوفمبر');
   });
 });

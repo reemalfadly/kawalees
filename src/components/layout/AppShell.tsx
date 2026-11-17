@@ -4,6 +4,8 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { CommandPalette } from '@/features/palette/CommandPalette';
 import { QuickCapture } from '@/features/capture/QuickCapture';
+import { ExportReminder } from '@/features/settings/ExportReminder';
+import { PersistAfterFirstIdea } from '@/features/settings/PersistAfterFirstIdea';
 import { useIsDesktop, useIsTablet } from '@/hooks/useMediaQuery';
 import { useLevel } from '@/hooks/useProgress';
 import { haptics } from '@/lib/haptics';
@@ -76,13 +78,13 @@ function LevelWatcher() {
       celebrate();
       haptics.success();
       toast({
-        title: `مستوى جديد: ${level.title} ${level.emoji}`,
+        title: `مستوى جديد: ${level.title}`,
         description: `وصلت المستوى ${level.level}`,
         tone: 'success',
       });
     }, 600);
     return () => window.clearTimeout(timer);
-  }, [level.level, level.title, level.emoji, celebrate, mountedAt]);
+  }, [level.level, level.title, celebrate, mountedAt]);
   return null;
 }
 
@@ -130,6 +132,7 @@ export function AppShell() {
         tabIndex={-1}
         className="min-w-0 flex-1 pb-36 outline-none md:pb-16"
       >
+        <ExportReminder />
         <ErrorBoundary resetKey={location.pathname}>
           <Suspense fallback={<RouteFallback />}>
             <motion.div
@@ -149,6 +152,7 @@ export function AppShell() {
       <Toaster />
       <Confetti />
       <LevelWatcher />
+      <PersistAfterFirstIdea />
       <CaptureDeepLink />
     </div>
   );

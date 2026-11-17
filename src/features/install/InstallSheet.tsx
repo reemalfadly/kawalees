@@ -1,5 +1,6 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { Sheet } from '@/components/ui/Sheet';
+import { OFFLINE_NOTE } from '@/lib/about';
 import { useUI } from '@/store/ui';
 import { InstallGuide } from './InstallGuide';
 
@@ -11,7 +12,7 @@ export function InstallSheet() {
       open={open}
       onClose={() => setOpen(false)}
       title="تثبيت كواليس على الجهاز"
-      description="يفتح من الشاشة الرئيسية مثل أي تطبيق، ويشتغل بدون إنترنت"
+      description={`يفتح من الشاشة الرئيسية مثل أي تطبيق. ${OFFLINE_NOTE}`}
       size="lg"
       initialFocus="none"
     >

@@ -1,5 +1,16 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
-import { Share2, X } from 'lucide-react';
+import {
+  Dumbbell,
+  Flame,
+  Lightbulb,
+  PartyPopper,
+  PenLine,
+  Rocket,
+  Share2,
+  Sparkles,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { animate, AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -11,6 +22,7 @@ import { PLATFORM_META } from '@/lib/catalog';
 import { formatDate } from '@/lib/dates';
 import { formatNumber, formatSigned, plural, WORDS } from '@/lib/format';
 import { monthRecap } from '@/lib/stats';
+import { Glyph } from '@/features/stats/glyphs';
 
 /* "Wrapped"-style monthly story: tap to advance, hold to pause, share at the end. */
 
@@ -60,6 +72,18 @@ function Line({ children }: { children: ReactNode }) {
     </p>
   );
 }
+/** A small line icon at the end of a headline, in place of an emoji. */
+function Ico({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <Icon
+      size={26}
+      strokeWidth={1.8}
+      className="ms-2 inline-block align-[-0.18em] text-white/80"
+      aria-hidden
+    />
+  );
+}
+
 function Note({ children }: { children: ReactNode }) {
   return (
     <p className="mt-6 inline-block rounded-full bg-white/15 px-4 py-2 text-sm text-white/90 backdrop-blur">
@@ -128,7 +152,9 @@ export default function RecapPage() {
         content: (
           <div>
             <Kicker>{monthName} كان هادي</Kicker>
-            <Line>ما في نشاط مسجّل بهالشهر. والشهر الجاي فرصة جديدة ✨</Line>
+            <Line>
+              ما في نشاط مسجّل بهالشهر. والشهر الجاي فرصة جديدة <Ico icon={Sparkles} />
+            </Line>
           </div>
         ),
       });
@@ -143,7 +169,8 @@ export default function RecapPage() {
               <CountUp to={r.ideasCreated} />
             </Big>
             <Line>
-              {r.ideasCreated === 1 ? 'فكرة جديدة انولدت' : 'فكرة جديدة انولدت هالشهر'} 💡
+              {r.ideasCreated === 1 ? 'فكرة جديدة انولدت' : 'فكرة جديدة انولدت هالشهر'}
+              <Ico icon={Lightbulb} />
             </Line>
             {r.prevIdeasCreated > 0 && (
               <Note>
@@ -164,7 +191,15 @@ export default function RecapPage() {
               <CountUp to={r.published} />
             </Big>
             <Line>
-              {r.published === 0 ? 'ولا منشور… الشهر الجاي نعوضها 💪' : 'محتوى نزل للعالم 🚀'}
+              {r.published === 0 ? (
+                <>
+                  ولا منشور… الشهر الجاي نعوضها <Ico icon={Dumbbell} />
+                </>
+              ) : (
+                <>
+                  محتوى نزل للعالم <Ico icon={Rocket} />
+                </>
+              )}
             </Line>
             {r.topPlatform && (
               <Note>
@@ -187,7 +222,9 @@ export default function RecapPage() {
               <Big>
                 <CountUp to={r.wordsWritten} />
               </Big>
-              <Line>كلمة بالسكريبتات ✍️</Line>
+              <Line>
+                كلمة بالسكريبتات <Ico icon={PenLine} />
+              </Line>
               <Note>
                 ≈ {Math.max(1, Math.round(r.wordsWritten / settings.wordsPerMinute))} دقيقة كلام
                 قدام الكاميرا
@@ -204,7 +241,9 @@ export default function RecapPage() {
             <Big>
               <CountUp to={r.activeDays} />
             </Big>
-            <Line>يوم فيه خطوة إبداعية 🔥</Line>
+            <Line>
+              يوم فيه خطوة إبداعية <Ico icon={Flame} />
+            </Line>
             <div className="mt-6 flex flex-wrap gap-2">
               {r.bestStreak > 1 && <Note>أطول سلسلة: {plural(r.bestStreak, WORDS.day)}</Note>}
               {r.busiestWeekday != null && (
@@ -246,7 +285,10 @@ export default function RecapPage() {
                 {grow.delta > 0 ? '+' : '−'}
                 <CountUp to={Math.abs(grow.delta)} />
               </Big>
-              <Line>متابع {grow.delta > 0 ? 'جديد انضم 🎉' : 'بالفرق هالشهر'}</Line>
+              <Line>
+                متابع {grow.delta > 0 ? 'جديد انضم' : 'بالفرق هالشهر'}
+                {grow.delta > 0 && <Ico icon={PartyPopper} />}
+              </Line>
               <Note>
                 من <span className="num">{formatNumber(grow.from)}</span> إلى{' '}
                 <span className="num">{formatNumber(grow.to)}</span>
@@ -260,11 +302,15 @@ export default function RecapPage() {
       bg: 'linear-gradient(160deg,#0b0b12 0%,#312e81 50%,#ff6b3d 100%)',
       content: (
         <div className="text-center">
-          <p className="text-7xl">{level.emoji}</p>
+          <div className="mx-auto grid size-28 place-items-center rounded-[36px] bg-white/15 backdrop-blur">
+            <Glyph name={level.icon} size={64} strokeWidth={1.5} className="text-white" />
+          </div>
           <p className="mt-6 text-lg text-white/75">المستوى {level.level}</p>
           <p className="font-display text-5xl font-bold text-white">{level.title}</p>
           {r.xpEarned > 0 && <Note>+{formatNumber(r.xpEarned)} نقطة خبرة بهالشهر</Note>}
-          <Line>الشهر الجاي أقوى ✨</Line>
+          <Line>
+            الشهر الجاي أقوى <Ico icon={Sparkles} />
+          </Line>
         </div>
       ),
     });
@@ -319,11 +365,11 @@ export default function RecapPage() {
 
   const share = async () => {
     const text = [
-      `ملخص ${monthName} في كواليس ✨`,
-      `💡 ${plural(r.ideasCreated, WORDS.idea)}`,
-      `🚀 ${plural(r.published, WORDS.post)} منشور`,
-      `🔥 ${plural(r.activeDays, WORDS.day)} نشاط`,
-      `${level.emoji} المستوى ${level.level}: ${level.title}`,
+      `ملخص ${monthName} في كواليس`,
+      `الأفكار: ${plural(r.ideasCreated, WORDS.idea)}`,
+      `المنشور: ${plural(r.published, WORDS.post)}`,
+      `النشاط: ${plural(r.activeDays, WORDS.day)}`,
+      `المستوى ${level.level}: ${level.title}`,
     ].join('\n');
     try {
       if (navigator.share) await navigator.share({ title: `ملخص ${monthName}`, text });

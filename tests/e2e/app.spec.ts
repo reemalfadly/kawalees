@@ -262,6 +262,8 @@ test.describe('prompter voice-follow', () => {
     await page.getByRole('link', { name: 'صوّرت محتوى أسبوع كامل في يوم واحد' }).click();
     await page.getByRole('button', { name: 'وضع التصوير', exact: true }).first().click();
     await page.getByRole('button', { name: 'يتبع الصوت' }).click();
+    // The one-time note that voice mode needs the internet.
+    await page.getByRole('button', { name: 'متابعة', exact: true }).click();
     await page.getByRole('button', { name: 'تشغيل' }).click();
     await expect(page.getByText('الاستماع شغال')).toBeVisible();
     await expect(page.locator('[data-said]')).toHaveCount(6, { timeout: 8000 });

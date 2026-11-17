@@ -44,7 +44,7 @@ function ToastItem({ t }: { t: Toast }) {
         <button
           type="button"
           data-ripple
-          className="shrink-0 rounded-xl bg-accent-soft px-3 py-1.5 text-sm font-semibold text-accent-ink transition-colors hover:bg-[color-mix(in_oklab,var(--accent)_22%,transparent)]"
+          className="min-h-11 shrink-0 rounded-xl bg-accent-soft px-3 py-1.5 text-sm font-semibold text-accent-ink transition-colors hover:bg-[color-mix(in_oklab,var(--accent)_22%,transparent)]"
           onClick={() => {
             t.action?.run();
             dismiss(t.id);

@@ -7,7 +7,8 @@ import { niceDomain } from './scale';
 import { useWidth } from './useWidth';
 
 /* Published per week. One series, one colour; the current week is called out by
-   its label and value. A hairline marks the goal. Time runs left-to-right. */
+   its label and value. A hairline marks the goal. Time runs with the reading
+   direction of the page: the oldest week sits on the right, the newest on the left. */
 
 const PAD = { top: 26, bottom: 28, side: 8 };
 
@@ -35,7 +36,7 @@ export function WeeklyBars({
   const slot = (width - PAD.side * 2) / weeks.length;
   const bw = Math.min(24, slot * 0.55);
   const y = (v: number) => PAD.top + innerH - (v / dom.max) * innerH;
-  const cx = (i: number) => PAD.side + slot * (i + 0.5);
+  const cx = (i: number) => PAD.side + slot * (weeks.length - 1 - i + 0.5);
   const current = weeks.length - 1;
   const peak = weeks.reduce((best, w, i) => (w.count > (weeks[best]?.count ?? 0) ? i : best), 0);
 
@@ -50,7 +51,7 @@ export function WeeklyBars({
       >
         <line x1={0} x2={width} y1={y(0)} y2={y(0)} stroke="var(--line)" strokeWidth={1} />
         <line x1={0} x2={width} y1={y(goal)} y2={y(goal)} stroke="var(--line-2)" strokeWidth={1} />
-        <text x={width - 4} y={y(goal) - 6} className="fill-ink-3 text-[11px]" textAnchor="end">
+        <text x={width - 4} y={y(goal) - 6} className="fill-ink-3 text-xs" textAnchor="end">
           الهدف {goal}
         </text>
         {weeks.map((w, i) => {
@@ -98,7 +99,7 @@ export function WeeklyBars({
                   x={cx(i)}
                   y={height - 8}
                   textAnchor="middle"
-                  className={isCur ? 'fill-ink text-[11px] font-medium' : 'fill-ink-3 text-[11px]'}
+                  className={isCur ? 'fill-ink text-xs font-medium' : 'fill-ink-3 text-xs'}
                 >
                   {isCur ? 'هالأسبوع' : formatDate.dayMonthShort(fromDayKey(w.weekStart))}
                 </text>
@@ -113,7 +114,7 @@ export function WeeklyBars({
           className="glass-strong pointer-events-none absolute z-10 -translate-x-1/2 rounded-xl px-3 py-2 text-center whitespace-nowrap"
           style={{ left: Math.min(Math.max(cx(hover), 70), width - 70), top: 0 }}
         >
-          <p className="text-[11px] text-ink-3">
+          <p className="text-xs text-ink-3">
             أسبوع {formatDate.dayMonth(fromDayKey(weeks[hover].weekStart))}
           </p>
           <p className="text-sm font-semibold text-ink">{plural(weeks[hover].count, WORDS.post)}</p>

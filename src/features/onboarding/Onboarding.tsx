@@ -5,10 +5,13 @@ import {
   CalendarDays,
   Check,
   Clapperboard,
+  LockKeyhole,
   Minus,
   Plus,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
+  WifiOff,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
@@ -18,20 +21,23 @@ import { Input } from '@/components/ui/Field';
 import { GlyphTile } from '@/components/ui/GlyphTile';
 import { LogoMark } from '@/components/ui/Logo';
 import { PlatformDot } from '@/components/ui/PlatformIcon';
-import { AUTHOR } from '@/lib/about';
+import { detectPlatform, useInstall } from '@/features/install/useInstall';
+import { AUTHOR, INSTALL_SAVES_NOTE, OFFLINE_NOTE, PRIVACY_NOTE } from '@/lib/about';
 import { AVATARS, PLATFORM_META } from '@/lib/catalog';
 import { cn } from '@/lib/cn';
 import { haptics } from '@/lib/haptics';
 import { completeOnboarding } from '@/lib/repo';
 import { loadDemoData } from '@/lib/seed';
-import { PLATFORMS, type PlatformId } from '@/lib/types';
-import { useUI } from '@/store/ui';
+import { trackError } from '@/lib/tracker';
+import { PLATFORMS, type PlatformId, type Settings } from '@/lib/types';
+import { toast, useUI } from '@/store/ui';
+import { saveOnboardingDraft } from './draft';
 
 const FEATURES = [
   {
     icon: Sparkles,
     title: 'بنك أفكار ما ينسى',
-    text: 'كل فكرة تنحفظ بثانية، ومعها شرارات جاهزة لما يوقف الإلهام',
+    text: 'كل فكرة تُحفظ في ثوانٍ، ومعها شرارات جاهزة عند توقف الإلهام',
     from: '#a78bfa',
     to: '#7c3aed',
   },
@@ -45,7 +51,7 @@ const FEATURES = [
   {
     icon: CalendarDays,
     title: 'جدول نشر واضح',
-    text: 'تقويم يوريك وش ينزل ومتى، على كل المنصات',
+    text: 'تقويم يعرض ما ينزل ومتى، على كل المنصات',
     from: '#38bdf8',
     to: '#4f46e5',
   },
@@ -60,26 +66,50 @@ const FEATURES = [
 
 const STEPS = 4;
 
-export default function Onboarding() {
+export default function Onboarding({ initial }: { initial?: Settings | null }) {
   const setInstallOpen = useUI((s) => s.setInstallOpen);
+  const { installed } = useInstall();
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
-  const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('✨');
-  const [platforms, setPlatforms] = useState<PlatformId[]>(['instagram', 'tiktok']);
-  const [goal, setGoal] = useState(3);
+  // A setup interrupted by a reload or a closed tab resumes with what was already saved.
+  const [name, setName] = useState(initial?.name ?? '');
+  const [avatar, setAvatar] = useState(initial?.avatar ?? '✨');
+  const [platforms, setPlatforms] = useState<PlatformId[]>(
+    initial?.platforms?.length ? initial.platforms : ['instagram', 'tiktok'],
+  );
+  const [goal, setGoal] = useState(initial?.weeklyGoal ?? 3);
   const [busy, setBusy] = useState(false);
+  const [moving, setMoving] = useState(false);
 
-  const go = (next: number) => {
+  /** Moving forward waits for the draft (the name included) to reach the database, so it is
+      already saved when the next step shows. A failed save never traps anyone on a step. */
+  const go = async (next: number) => {
+    if (moving) return;
+    if (next > step) {
+      setMoving(true);
+      try {
+        await saveOnboardingDraft({ name: name.trim(), avatar, platforms, weeklyGoal: goal });
+      } catch (e) {
+        void trackError(e);
+      }
+      setMoving(false);
+    }
     setDir(next > step ? 1 : -1);
     setStep(next);
     haptics.tap();
   };
 
   const finish = async () => {
+    if (busy) return;
     setBusy(true);
-    await completeOnboarding({ name: name.trim(), avatar, platforms, weeklyGoal: goal });
-    haptics.success();
+    try {
+      await completeOnboarding({ name: name.trim(), avatar, platforms, weeklyGoal: goal });
+      haptics.success();
+    } catch (e) {
+      void trackError(e);
+      toast({ title: 'تعذّر إكمال الإعداد', description: 'يمكن المحاولة مرة أخرى', tone: 'error' });
+      setBusy(false);
+    }
   };
 
   // Presentation mode, never shown in the UI: #/?demo=1 opens with a month of sample work
@@ -93,13 +123,13 @@ export default function Onboarding() {
   const canNext = step !== 2 || platforms.length > 0;
 
   return (
-    <div className="flex min-h-dvh flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="flex min-h-dvh flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))]">
       <div className="mx-auto flex w-full max-w-xl items-center justify-between">
         <div className="flex h-10 items-center">
           {step > 0 && (
             <button
               type="button"
-              onClick={() => go(step - 1)}
+              onClick={() => void go(step - 1)}
               aria-label="رجوع"
               className="grid size-10 place-items-center rounded-full text-ink-2 hover:bg-surface-2"
             >
@@ -172,18 +202,31 @@ export default function Onboarding() {
                     </motion.li>
                   ))}
                 </ul>
+                <ul className="mt-5 grid gap-2 text-start text-sm leading-6 text-ink-3">
+                  <li className="flex items-start gap-2.5">
+                    <WifiOff size={16} className="mt-1 shrink-0 text-accent-ink" aria-hidden />
+                    {OFFLINE_NOTE}
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <LockKeyhole size={16} className="mt-1 shrink-0 text-accent-ink" aria-hidden />
+                    {PRIVACY_NOTE}
+                  </li>
+                </ul>
+                <p dir="ltr" className="mt-6 text-center text-xs text-ink-3">
+                  By: {AUTHOR}
+                </p>
               </div>
             )}
 
             {step === 1 && (
               <div>
-                <h2 className="font-display text-3xl font-bold text-ink">شنو اسمك؟</h2>
-                <p className="mt-2 text-ink-2">عشان نرحّب فيك صح كل يوم</p>
+                <h2 className="font-display text-3xl font-bold text-ink">ما اسمك؟</h2>
+                <p className="mt-2 text-ink-2">لنرحّب بك باسمك كل يوم</p>
                 <Input
                   autoFocus
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && go(2)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && void go(2)}
                   placeholder="الاسم"
                   aria-label="الاسم"
                   maxLength={40}
@@ -218,7 +261,7 @@ export default function Onboarding() {
             {step === 2 && (
               <div>
                 <h2 className="font-display text-3xl font-bold text-ink">منصات النشر</h2>
-                <p className="mt-2 text-ink-2">نختار المنصات، ونقدر نعدّلها بعدين من الإعدادات</p>
+                <p className="mt-2 text-ink-2">نختار المنصات، ويمكن تعديلها لاحقاً من الإعدادات</p>
                 <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {PLATFORMS.map((p) => {
                     const on = platforms.includes(p);
@@ -255,7 +298,7 @@ export default function Onboarding() {
             {step === 3 && (
               <div className="text-center">
                 <h2 className="font-display text-3xl font-bold text-ink">هدف النشر الأسبوعي</h2>
-                <p className="mt-2 text-ink-2">كم محتوى بالأسبوع؟ الاستمرارية أهم من الكثرة</p>
+                <p className="mt-2 text-ink-2">كم محتوى في الأسبوع؟ الاستمرارية أهم من الكثرة</p>
                 <div className="mt-10 flex items-center justify-center gap-6">
                   <button
                     type="button"
@@ -288,7 +331,7 @@ export default function Onboarding() {
                 </div>
                 <div className="mt-8 flex justify-center gap-2">
                   {[
-                    { n: 2, l: 'هادي' },
+                    { n: 2, l: 'هادئ' },
                     { n: 3, l: 'متوازن' },
                     { n: 5, l: 'طموح' },
                     { n: 7, l: 'يومي' },
@@ -314,37 +357,45 @@ export default function Onboarding() {
         </AnimatePresence>
       </div>
 
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
-        {step < STEPS - 1 ? (
-          <Button
-            variant="primary"
-            size="lg"
-            block
-            disabled={!canNext}
-            onClick={() => go(step + 1)}
-            iconEnd={<ArrowLeft size={20} />}
-          >
-            {step === 0 ? 'يلا نبدأ' : 'التالي'}
-          </Button>
-        ) : (
-          <Button variant="primary" size="lg" block disabled={busy} onClick={finish}>
-            يلا نبدع 🚀
-          </Button>
-        )}
-        {step === 0 && (
-          <button
-            type="button"
-            onClick={() => setInstallOpen(true)}
-            className="mx-auto text-sm font-medium text-accent-ink hover:underline"
-          >
-            طريقة تثبيت كواليس على الجوال والكمبيوتر
-          </button>
-        )}
-        {step === 0 && (
-          <p dir="ltr" className="mt-1 text-center text-xs text-ink-3">
-            By: {AUTHOR}
-          </p>
-        )}
+      {/* Pinned to the bottom of the screen, so the way forward is always within reach. */}
+      <div className="sticky bottom-0 z-10 -mx-5 mt-auto bg-[linear-gradient(to_top,var(--bg)_72%,transparent)] px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
+          {step < STEPS - 1 ? (
+            <Button
+              variant="primary"
+              size="lg"
+              block
+              disabled={!canNext || moving}
+              onClick={() => void go(step + 1)}
+              iconEnd={<ArrowLeft size={20} />}
+            >
+              {step === 0 ? 'يلا نبدأ' : 'التالي'}
+            </Button>
+          ) : (
+            <Button variant="primary" size="lg" block disabled={busy} onClick={() => void finish()}>
+              يلا نبدع 🚀
+            </Button>
+          )}
+          {step === 0 && !installed && (
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="flex items-center gap-1.5 text-xs leading-5 text-ink-3">
+                <ShieldCheck size={14} className="shrink-0 text-good" aria-hidden />
+                <span>
+                  {INSTALL_SAVES_NOTE}
+                  {detectPlatform() === 'ios' &&
+                    ' (في Safari: المشاركة ثم «إضافة إلى الشاشة الرئيسية»)'}
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setInstallOpen(true)}
+                className="inline-flex min-h-11 items-center text-sm font-medium text-accent-ink hover:underline"
+              >
+                طريقة تثبيت كواليس على الجوال والكمبيوتر
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { Button, IconButton } from '@/components/ui/Button';
 import { LogoMark } from '@/components/ui/Logo';
+import { INSTALL_SAVES_NOTE } from '@/lib/about';
 import { useUI } from '@/store/ui';
 import { useInstall } from './useInstall';
 
@@ -49,7 +50,7 @@ export function InstallBanner() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-ink">كواليس أحلى كتطبيق على جهازك</p>
               <p className="text-xs text-ink-3">
-                يفتح بضغطة من الشاشة الرئيسية، ويشتغل بدون إنترنت
+                {INSTALL_SAVES_NOTE}، ويفتح بضغطة من الشاشة الرئيسية
               </p>
             </div>
             <div className="flex items-center gap-1.5">

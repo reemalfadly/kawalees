@@ -1,5 +1,7 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { db } from './db';
+import { todayKey } from './dates';
+import { markExported } from './protect';
 import { invisibleMark, PROVENANCE } from './provenance';
 import { backupSchema } from './schema';
 import type { Backup, Snapshot, SnapshotReason } from './types';
@@ -35,7 +37,7 @@ export function parseBackup(text: string): ParseResult {
   try {
     raw = JSON.parse(text);
   } catch {
-    return { ok: false, error: 'الملف مو بصيغة JSON صحيحة' };
+    return { ok: false, error: 'الملف ليس بصيغة JSON صحيحة' };
   }
   const result = backupSchema.safeParse(raw);
   if (!result.success) {
@@ -133,4 +135,14 @@ export function downloadJson(filename: string, data: unknown): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Exports a backup file and remembers when, so the weekly reminder knows. Returns the file name. */
+export async function exportAndDownload(now = new Date()): Promise<string> {
+  const backup = await exportBackup();
+  const day = todayKey(now);
+  const filename = `kawalees-backup-${day}.json`;
+  downloadJson(filename, backup);
+  await markExported(now.getTime());
+  return filename;
 }

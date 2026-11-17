@@ -31,6 +31,10 @@ interface UIState {
   freshOpen: boolean;
   setFreshOpen: (open: boolean) => void;
 
+  /** Help and support sheet; any screen can open it (`useUI.getState().setHelpOpen(true)`). */
+  helpOpen: boolean;
+  setHelpOpen: (open: boolean) => void;
+
   confetti: number;
   celebrate: () => void;
 }
@@ -58,6 +62,9 @@ export const useUI = create<UIState>((set) => ({
 
   freshOpen: false,
   setFreshOpen: (freshOpen) => set({ freshOpen }),
+
+  helpOpen: false,
+  setHelpOpen: (helpOpen) => set({ helpOpen }),
 
   confetti: 0,
   celebrate: () => set((s) => ({ confetti: s.confetti + 1 })),

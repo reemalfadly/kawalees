@@ -13,7 +13,15 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { CalendarCheck2, ChevronLeft, ChevronRight, GripVertical, Inbox, Plus } from 'lucide-react';
+import {
+  CalendarCheck2,
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
+  Inbox,
+  Plus,
+} from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -40,6 +48,7 @@ import { plural, WORDS } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { scheduleIdea } from '@/lib/repo';
 import { publishedDayKey } from '@/lib/stats';
+import { HIT_BUTTON, HIT_ICON } from '@/lib/touch';
 import type { Idea } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
 
@@ -188,13 +197,14 @@ export default function CalendarPage() {
                 {formatDate.monthYear(monthDate)}
               </h2>
               <div className="ms-auto flex items-center gap-1.5">
-                <Button variant="secondary" size="sm" onClick={goToday}>
+                <Button variant="secondary" size="sm" className={HIT_BUTTON} onClick={goToday}>
                   اليوم
                 </Button>
                 <IconButton
                   label="الشهر السابق"
                   variant="secondary"
                   size="sm"
+                  className={HIT_ICON}
                   onClick={() => shift(-1)}
                 >
                   <ChevronRight size={18} />
@@ -203,6 +213,7 @@ export default function CalendarPage() {
                   label="الشهر التالي"
                   variant="secondary"
                   size="sm"
+                  className={HIT_ICON}
                   onClick={() => shift(1)}
                 >
                   <ChevronLeft size={18} />
@@ -328,7 +339,7 @@ function DayCell({
         type="button"
         onClick={onSelect}
         aria-label={`${formatDate.full(date)}${items.length ? `، ${plural(items.length, WORDS.post)}` : ''}`}
-        className="absolute inset-0 rounded-2xl"
+        className="absolute -inset-[3px] rounded-2xl"
       />
       <span
         className={cn(
@@ -344,9 +355,7 @@ function DayCell({
             <CalendarChip key={i.id} idea={i} />
           ))}
           {items.length > 3 && (
-            <span className="pointer-events-none px-1 text-[11px] text-ink-3">
-              +{items.length - 3}
-            </span>
+            <span className="pointer-events-none px-1 text-xs text-ink-3">+{items.length - 3}</span>
           )}
         </div>
       ) : (
@@ -385,7 +394,7 @@ function CalendarChip({ idea }: { idea: Idea }) {
       {...attributes}
       {...listeners}
       className={cn(
-        'relative z-10 flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] leading-4 font-medium transition-colors',
+        'relative z-10 flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs leading-4 font-medium transition-colors',
         published
           ? 'bg-accent-soft text-ink'
           : 'border border-line bg-solid/60 text-ink-2 hover:text-ink',
@@ -412,7 +421,13 @@ function DayPanel({ dayKey, items, onAdd }: { dayKey: string; items: Idea[]; onA
           <p className="text-sm text-ink-3">{relativeDayLabel(dayKey)}</p>
           <h2 className="font-display text-xl font-bold text-ink">{formatDate.full(date)}</h2>
         </div>
-        <IconButton label="إضافة لهاليوم" variant="primary" size="sm" onClick={onAdd}>
+        <IconButton
+          label="إضافة لهاليوم"
+          variant="secondary"
+          size="sm"
+          className={HIT_ICON}
+          onClick={onAdd}
+        >
           <Plus size={18} />
         </IconButton>
       </div>
@@ -470,7 +485,9 @@ function Tray({ ideas }: { ideas: Idea[] }) {
         </div>
         <p className="mb-3 text-xs text-ink-3">سحب أي فكرة لليوم المناسب يجدولها</p>
         {ideas.length === 0 ? (
-          <p className="py-4 text-center text-sm text-ink-3">كل الأفكار لها موعد 👌</p>
+          <p className="flex items-center justify-center gap-2 py-4 text-center text-sm text-ink-3">
+            <CheckCheck size={16} aria-hidden /> كل الأفكار لها موعد
+          </p>
         ) : (
           <ul className="no-scrollbar flex max-h-[420px] flex-col gap-1.5 overflow-y-auto">
             {ideas.map((i) => (

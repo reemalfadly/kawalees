@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* Touch screens and phone-width windows: where controls must reach 44px. */
+@custom-variant tap {
+  @media (max-width: 767px), (pointer: coarse) {
+    @slot;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────
    Design tokens
    Every colour in the app comes from here, so a theme or accent
@@ -24,7 +31,8 @@
   --line-2: rgb(255 255 255 / 0.15);
   --ink: #f5f3fb;
   --ink-2: #b0aec1;
-  --ink-3: #85839a;
+  /* 5.15:1 on the raised dark surface (was 4.13:1). */
+  --ink-3: #9694ab;
   --scrim: rgb(3 3 8 / 0.62);
   --highlight: rgb(255 255 255 / 0.07);
   /* Elevation (Fluent-style key + ambient shadows) with an iOS glass edge on top. */
@@ -70,7 +78,8 @@
   --line-2: rgb(24 18 48 / 0.15);
   --ink: #15131d;
   --ink-2: #56536a;
-  --ink-3: #6c697f;
+  /* 4.9:1 even on the tinted light surface (was 4.1:1). */
+  --ink-3: #605d73;
   --scrim: rgb(20 16 32 / 0.36);
   --highlight: rgb(255 255 255 / 0.9);
   --edge: inset 0 1px 0 0 rgb(255 255 255 / 0.95);
@@ -94,25 +103,29 @@
   --warn: #b45309;
   --bad: #dc2626;
 
+  /* Light-theme stage colours: every one clears 3:1 on the page (4.0 to 7.8). */
   --stage-idea: #4a3aa7;
-  --stage-script: #e87ba4;
+  --stage-script: #c0457b;
   --stage-shoot: #2a78d6;
-  --stage-edit: #eda100;
-  --stage-ready: #1baf7a;
-  --stage-published: #eb6834;
+  --stage-edit: #9a6200;
+  --stage-ready: #0f7f57;
+  --stage-published: #c24b1b;
 
   --accent-ink: var(--accent-ink-l);
 }
 
-/* Accents: fill, second gradient stop, a stronger fill for white text, and text-safe inks per theme. */
+/* Accents: fill, second gradient stop, a stronger fill that keeps the label readable
+   (--on-accent: white, or near-black for gold), and text-safe inks per theme.
+   Every strong gradient stop is at least 4.5:1 against its --on-accent. */
 :root,
 [data-accent='ember'] {
   --accent: #ff6b3d;
   --accent-2: #ff3d7f;
-  --accent-strong: #ea4f1f;
+  --accent-strong: #d63f17;
   --accent-strong-2: #d92f6a;
+  --on-accent: #ffffff;
   --accent-ink-d: #ff9570;
-  --accent-ink-l: #c2410c;
+  --accent-ink-l: #b23a0a;
 }
 [data-accent='violet'] {
   --accent: #8b5cf6;
@@ -136,13 +149,15 @@
   --accent-strong: #047857;
   --accent-strong-2: #0e7490;
   --accent-ink-d: #5ee6b5;
-  --accent-ink-l: #047857;
+  --accent-ink-l: #046c4e;
 }
 [data-accent='gold'] {
   --accent: #f59e0b;
   --accent-2: #ef4444;
-  --accent-strong: #b45309;
-  --accent-strong-2: #c52525;
+  /* Gold keeps its own colour in the button; the label turns dark instead (4.9:1 to 8.6:1). */
+  --accent-strong: #f59e0b;
+  --accent-strong-2: #ef4444;
+  --on-accent: #1a1208;
   --accent-ink-d: #fcc451;
   --accent-ink-l: #a14b06;
 }
@@ -180,6 +195,7 @@
   --color-accent: var(--accent);
   --color-accent-2: var(--accent-2);
   --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-softer: var(--accent-softer);
   --color-good: var(--good);
@@ -340,6 +356,17 @@
 }
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+/* Invisible 44px hit area around a smaller control, with no change to its look.
+   Use as `tap:hit-44` on a `relative` element that does not clip its overflow
+   (elements with data-ripple clip, so give those a real 44px size instead). */
+@utility hit-44 {
+  &::after {
+    content: '';
+    position: absolute;
+    inset-block: min(0px, calc((100% - 44px) / 2));
+    inset-inline: min(0px, calc((100% - 44px) / 2));
+  }
 }
 @utility no-scrollbar {
   scrollbar-width: none;
@@ -593,6 +620,27 @@
 .flame {
   animation: flame 1.6s ease-in-out infinite;
   transform-origin: 50% 90%;
+}
+
+/* Text fields never go below 16px: iOS zooms the page in on anything smaller.
+   Unlayered on purpose, so it also wins over a small size class set on a field
+   (a bigger size, like an idea title, is left alone). */
+:is(input, textarea, select):is(
+  .text-xs,
+  .text-sm,
+  .text-\[12px\],
+  .text-\[13px\],
+  .text-\[14px\],
+  .text-\[15px\]
+) {
+  font-size: 16px;
+}
+
+/* Labels on the accent gradient follow the accent (gold turns dark), whatever colour a
+   screen set on them. Unlayered so it beats a leftover text-white. */
+[data-accent='gold'] .bg-accent-gradient-strong,
+[data-accent='gold'] .bg-accent-gradient-strong [class*='text-white'] {
+  color: var(--on-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -6,13 +6,32 @@ import { useNavigate, useParams } from 'react-router';
 import { useIdea, useSettings } from '@/hooks/data';
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/script';
-import { followSpeech, isSpace, normalizeWord, tokenize } from '@/lib/voiceFollow';
+import {
+  countBlanks,
+  DEFAULT_DIALECT,
+  describeVoiceError,
+  dialectLabel,
+  DIALECTS,
+  followSpeech,
+  isIosStandalone,
+  isSpace,
+  normalizeWord,
+  parseDialect,
+  resyncPosition,
+  tokenize,
+  type DialectCode,
+  type VoiceIssue,
+} from '@/lib/voiceFollow';
+import { PrompterDialog, type Dialog } from './PrompterDialog';
 
 /* Teleprompter: the script scrolls past a reading line while filming, either at a
    steady speed or following the reader's voice (speech recognition). Keeps the
    screen awake, mirrors for prompter glass, and remembers the setup. */
 
 const PREFS_KEY = 'kawalees:prompter';
+const LANG_KEY = 'kawalees:prompter-lang';
+const PRIVACY_KEY = 'kawalees:prompter-voice-privacy';
+
 interface Prefs {
   size: number;
   speed: number;
@@ -29,10 +48,29 @@ function loadPrefs(): Prefs {
   }
 }
 
+function readStore(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStore(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* storage unavailable: the choice lasts until the screen closes */
+  }
+}
+
 /** Speed steps 1–10 → pixels per second. */
 const pxPerSecond = (speed: number) => 14 + speed * 16;
 
-type WakeLock = { release: () => Promise<void> };
+interface WakeLock {
+  release: () => Promise<void>;
+  addEventListener?: (type: 'release', listener: () => void) => void;
+}
 
 // The Web Speech API, as far as voice-follow uses it (Chrome and Safari ship it prefixed).
 interface Recognition {
@@ -57,12 +95,35 @@ function recognitionCtor(): RecognitionCtor | undefined {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 }
 
-const VOICE_ERRORS: Record<string, string> = {
-  'not-allowed': 'متابعة الصوت تحتاج إذن المايك',
-  'service-not-allowed': 'متابعة الصوت تحتاج إذن المايك',
-  network: 'متابعة الصوت تحتاج إنترنت',
-  'audio-capture': 'ما لقينا مايك شغال',
+/** An iPhone or iPad running the installed app, where voice-follow is unreliable. */
+function iosInstalledRisk(): boolean {
+  if (__NATIVE__) return false;
+  try {
+    return isIosStandalone({
+      ua: navigator.userAgent,
+      maxTouchPoints: navigator.maxTouchPoints,
+      standalone: (navigator as Navigator & { standalone?: boolean }).standalone,
+      displayStandalone: window.matchMedia('(display-mode: standalone)').matches,
+    });
+  } catch {
+    return false;
+  }
+}
+
+const UNSUPPORTED: VoiceIssue = {
+  kind: 'service',
+  title: 'وضع الصوت غير متاح هنا',
+  text: __NATIVE__
+    ? 'متابعة الصوت تعمل في نسخة المتصفح من التطبيق، لأنها تعتمد على خدمة التعرّف على الكلام في المتصفح.'
+    : 'متابعة الصوت تعمل في كروم وسفاري، وهذا المتصفح لا يوفّر خدمة التعرّف على الكلام.',
+  fatal: true,
 };
+
+/** Scroll position that puts a word on the reading line. */
+function wordTarget(el: HTMLElement, word: HTMLElement): number {
+  const top = word.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+  return top + word.offsetHeight / 2 - el.clientHeight * 0.36;
+}
 
 export default function PrompterPage() {
   const { id } = useParams();
@@ -70,19 +131,26 @@ export default function PrompterPage() {
   const settings = useSettings();
   const navigate = useNavigate();
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const [lang, setLang] = useState<DialectCode>(() => parseDialect(readStore(LANG_KEY)));
   const [playing, setPlaying] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const [remainingPx, setRemainingPx] = useState(0);
   const [chrome, setChrome] = useState(true);
+  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const exact = useRef(0);
   const wake = useRef<WakeLock | null>(null);
   const hideTimer = useRef<number | undefined>(undefined);
+  const noticeTimer = useRef<number | undefined>(undefined);
+  // What the reader has already agreed to on this screen.
+  const blanksOk = useRef(false);
+  const iosOk = useRef(false);
+  const privacySeen = useRef(false);
   // Voice-follow: how many script words have been said so far.
   const [said, setSaid] = useState(0);
   const saidRef = useRef(0);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // The script as sections of tokens; every word gets a running index for voice-follow.
   const script = useMemo(() => {
@@ -104,10 +172,21 @@ export default function PrompterPage() {
     return { sections, words };
   }, [idea]);
 
+  const blanks = useMemo(() => (idea ? countBlanks(idea.hook, idea.body, idea.cta) : 0), [idea]);
+
   const setSaidAt = useCallback((n: number) => {
     saidRef.current = n;
     setSaid(n);
   }, []);
+
+  /** A short message that fades by itself (it never stays on screen for good). */
+  const notify = useCallback((text: string) => {
+    setNotice(text);
+    window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 5000);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
 
   useEffect(() => {
     try {
@@ -122,7 +201,7 @@ export default function PrompterPage() {
     [navigate, id],
   );
 
-  const listening = playing && prefs.voice;
+  const listening = playing && prefs.voice && dialog === null;
 
   // Steady scroll loop.
   useEffect(() => {
@@ -153,19 +232,23 @@ export default function PrompterPage() {
     const Ctor = recognitionCtor();
     if (!Ctor) return;
     let alive = true;
+    let silent = 0;
     let rec: Recognition | null = null;
-    const fail = (message: string) => {
+    // Voice mode cannot go on: back to the steady speed, with the reason and what to do.
+    const fail = (issue: VoiceIssue) => {
       alive = false;
-      setVoiceError(message);
       setPlaying(false);
+      setPrefs((p) => ({ ...p, voice: false }));
+      setDialog({ kind: 'problem', issue, resume: true });
     };
     const begin = () => {
       const r = new Ctor();
       rec = r;
-      r.lang = 'ar-SA';
+      r.lang = lang;
       r.continuous = true;
       r.interimResults = true;
       r.onresult = (e) => {
+        silent = 0;
         let heard = '';
         for (let i = 0; i < e.results.length; i++)
           heard += ' ' + (e.results[i]?.[0]?.transcript ?? '');
@@ -175,8 +258,31 @@ export default function PrompterPage() {
         if (next >= script.words.length) setPlaying(false);
       };
       r.onerror = (e) => {
-        if (e.error === 'no-speech' || e.error === 'aborted') return;
-        fail(VOICE_ERRORS[e.error] ?? 'تعذّرت متابعة الصوت');
+        const issue = describeVoiceError(e.error);
+        if (issue.kind === 'ignore') return;
+        if (issue.kind === 'silence') {
+          // Silence is normal between takes: say so once, and keep listening.
+          if (++silent === 2) notify(issue.text);
+          return;
+        }
+        if (issue.kind === 'language') {
+          if (lang !== DEFAULT_DIALECT) {
+            // This browser lacks that dialect: carry on with the default one.
+            alive = false;
+            writeStore(LANG_KEY, DEFAULT_DIALECT);
+            setLang(DEFAULT_DIALECT);
+            notify(`لهجة ${dialectLabel(lang)} غير مدعومة في هذا المتصفح، عدنا إلى السعودية`);
+            return;
+          }
+          fail({
+            ...issue,
+            title: 'العربية غير مدعومة في التعرّف على الكلام',
+            text: 'هذا المتصفح لا يدعم التعرّف على الكلام بالعربية. تستمر الشاشة بالسرعة الثابتة.',
+            fatal: true,
+          });
+          return;
+        }
+        fail(issue);
       };
       // Browsers end a session after a pause; carry on listening until stopped.
       r.onend = () => {
@@ -184,7 +290,7 @@ export default function PrompterPage() {
         try {
           begin();
         } catch {
-          fail('تعذّرت متابعة الصوت');
+          fail(describeVoiceError(''));
         }
       };
       r.start();
@@ -192,7 +298,7 @@ export default function PrompterPage() {
     try {
       begin();
     } catch {
-      queueMicrotask(() => fail('تعذّرت متابعة الصوت'));
+      queueMicrotask(() => fail(describeVoiceError('')));
     }
     return () => {
       alive = false;
@@ -207,7 +313,7 @@ export default function PrompterPage() {
         /* already stopped */
       }
     };
-  }, [listening, script, setSaidAt]);
+  }, [listening, script, lang, setSaidAt, notify]);
 
   // Voice-follow scrolling: glide the last word said onto the reading line.
   useEffect(() => {
@@ -218,10 +324,7 @@ export default function PrompterPage() {
     const tick = () => {
       const word = el.querySelector<HTMLElement>(`[data-w="${Math.max(0, saidRef.current - 1)}"]`);
       if (word) {
-        const top =
-          word.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
-        const target = top + word.offsetHeight / 2 - el.clientHeight * 0.36;
-        const d = target - el.scrollTop;
+        const d = wordTarget(el, word) - el.scrollTop;
         if (Math.abs(d) > 0.5) el.scrollTop += d * 0.08;
       }
       raf = requestAnimationFrame(tick);
@@ -230,33 +333,51 @@ export default function PrompterPage() {
     return () => cancelAnimationFrame(raf);
   }, [listening]);
 
-  // Keep the screen on while recording.
+  // Keep the screen on while this screen is open. The system lets go of the lock whenever
+  // the page is hidden, so ask again as soon as it is visible.
   useEffect(() => {
-    if (!playing) return;
     const nav = navigator as Navigator & {
       wakeLock?: { request: (t: 'screen') => Promise<WakeLock> };
     };
-    nav.wakeLock
-      ?.request('screen')
-      .then((l) => {
-        wake.current = l;
-      })
-      .catch(() => {});
+    const api = nav.wakeLock;
+    if (!api) return;
+    let dead = false;
+    let asking = false;
+    const acquire = () => {
+      if (dead || asking || wake.current || document.visibilityState !== 'visible') return;
+      asking = true;
+      api
+        .request('screen')
+        .then((lock) => {
+          if (dead) {
+            void lock.release().catch(() => {});
+            return;
+          }
+          wake.current = lock;
+          lock.addEventListener?.('release', () => {
+            if (wake.current === lock) wake.current = null;
+          });
+        })
+        .catch(() => {})
+        .finally(() => {
+          asking = false;
+        });
+    };
+    acquire();
+    document.addEventListener('visibilitychange', acquire);
     return () => {
+      dead = true;
+      document.removeEventListener('visibilitychange', acquire);
       void wake.current?.release().catch(() => {});
       wake.current = null;
     };
-  }, [playing]);
+  }, []);
 
   // Controls fade away while playing; any touch brings them back.
   const poke = useCallback(() => {
     setChrome(true);
     window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => setChrome(false), 2600);
-  }, []);
-
-  const start = useCallback(() => {
-    setCountdown(3);
   }, []);
 
   useEffect(() => {
@@ -271,8 +392,42 @@ export default function PrompterPage() {
     return () => window.clearTimeout(t);
   }, [countdown, poke]);
 
+  /**
+   * Start filming ('start') or switch voice mode on ('enable'), after the checks that come
+   * first: unfilled blanks, a browser without speech recognition, the installed iPhone app,
+   * and the one-time note that voice mode needs the internet.
+   */
+  const act = useCallback(
+    (action: 'enable' | 'start') => {
+      if (action === 'start' && blanks > 0 && !blanksOk.current) {
+        setDialog({ kind: 'blanks', count: blanks });
+        return;
+      }
+      if (action === 'enable' || prefs.voice) {
+        if (!recognitionCtor()) {
+          setPrefs((p) => ({ ...p, voice: false }));
+          setDialog({ kind: 'problem', issue: UNSUPPORTED, resume: action === 'start' });
+          return;
+        }
+        if (iosInstalledRisk() && !iosOk.current) {
+          setDialog({ kind: 'ios', action });
+          return;
+        }
+        if (!privacySeen.current && readStore(PRIVACY_KEY) !== '1') {
+          setDialog({ kind: 'privacy', action });
+          return;
+        }
+      }
+      if (action === 'enable') {
+        setPlaying(false);
+        setCountdown(null);
+        setPrefs((p) => ({ ...p, voice: true }));
+      } else setCountdown(3);
+    },
+    [blanks, prefs.voice],
+  );
+
   const toggle = useCallback(() => {
-    setVoiceError(null);
     if (countdown !== null) {
       setCountdown(null);
       return;
@@ -280,20 +435,55 @@ export default function PrompterPage() {
     if (playing) {
       setPlaying(false);
       setChrome(true);
-    } else start();
-  }, [countdown, playing, start]);
+    } else act('start');
+  }, [countdown, playing, act]);
 
   const toggleVoice = () => {
-    if (!prefs.voice && !recognitionCtor()) {
-      setVoiceError(
-        __NATIVE__ ? 'متابعة الصوت تشتغل في نسخة المتصفح' : 'متابعة الصوت تشتغل في كروم وسفاري',
-      );
-      return;
+    if (prefs.voice) {
+      setPlaying(false);
+      setCountdown(null);
+      setPrefs((p) => ({ ...p, voice: false }));
+    } else act('enable');
+  };
+
+  const chooseLang = (code: DialectCode) => {
+    setLang(code);
+    writeStore(LANG_KEY, code);
+  };
+
+  // What each dialog button does.
+  const onContinueVoice = () => {
+    if (!dialog || (dialog.kind !== 'privacy' && dialog.kind !== 'ios')) return;
+    if (dialog.kind === 'ios') iosOk.current = true;
+    else {
+      privacySeen.current = true;
+      writeStore(PRIVACY_KEY, '1');
     }
-    setVoiceError(null);
-    setPlaying(false);
-    setCountdown(null);
-    setPrefs((p) => ({ ...p, voice: !p.voice }));
+    setDialog(null);
+    act(dialog.action);
+  };
+  const onSteady = () => {
+    const d = dialog;
+    setDialog(null);
+    setPrefs((p) => ({ ...p, voice: false }));
+    const resume =
+      d?.kind === 'problem'
+        ? d.resume
+        : (d?.kind === 'privacy' || d?.kind === 'ios') && d.action === 'start';
+    if (resume) setCountdown(3);
+  };
+  const onRetry = () => {
+    setDialog(null);
+    act('enable');
+  };
+  const onFilmAnyway = () => {
+    blanksOk.current = true;
+    setDialog(null);
+    act('start');
+  };
+  const onEdit = () => {
+    setDialog(null);
+    exit();
   };
 
   const restart = () => {
@@ -303,6 +493,7 @@ export default function PrompterPage() {
   };
 
   useEffect(() => {
+    if (dialog) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
@@ -316,7 +507,7 @@ export default function PrompterPage() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggle, exit]);
+  }, [toggle, exit, dialog]);
 
   const onScroll = useCallback(() => {
     const el = scroller.current;
@@ -325,6 +516,21 @@ export default function PrompterPage() {
     setProgress(max > 0 ? el.scrollTop / max : 0);
     setRemainingPx(Math.max(0, max - el.scrollTop));
   }, []);
+
+  // In voice mode a touched word is where the reader is: the tracker carries on from there.
+  // Anywhere else a touch starts or pauses, as before.
+  const onScrollerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = scroller.current;
+    const word = prefs.voice ? (e.target as HTMLElement).closest<HTMLElement>('[data-w]') : null;
+    if (!el || !word) {
+      toggle();
+      return;
+    }
+    const index = Number(word.dataset.w);
+    setSaidAt(resyncPosition(index, script.words.length));
+    if (!listening) el.scrollTo({ top: wordTarget(el, word), behavior: 'smooth' });
+    else poke();
+  };
 
   // Measure once the script has rendered (and again if the text size changes).
   useEffect(() => {
@@ -365,7 +571,7 @@ export default function PrompterPage() {
       <div
         ref={scroller}
         onScroll={onScroll}
-        onClick={toggle}
+        onClick={onScrollerClick}
         className="no-scrollbar h-dvh overflow-y-auto"
         style={{ transform: prefs.mirror ? 'scaleX(-1)' : undefined }}
       >
@@ -386,6 +592,7 @@ export default function PrompterPage() {
                       data-said={prefs.voice && tok.i < said ? '' : undefined}
                       className={cn(
                         'transition-colors duration-300',
+                        tok.t.includes('___') && 'text-[var(--warn)]',
                         prefs.voice && tok.i < said && 'text-white/35',
                       )}
                     >
@@ -418,6 +625,19 @@ export default function PrompterPage() {
         )}
       </AnimatePresence>
 
+      {/* Short messages: they fade by themselves, whatever the controls are doing */}
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 top-[max(4.75rem,calc(env(safe-area-inset-top)+3.75rem))] z-30 flex justify-center px-4"
+      >
+        {notice && (
+          <p className="max-w-md rounded-2xl bg-white/15 px-4 py-2 text-center text-sm text-white backdrop-blur-xl">
+            {notice}
+          </p>
+        )}
+      </div>
+
       {/* Top bar */}
       <motion.header
         animate={{ opacity: showChrome ? 1 : 0, y: showChrome ? 0 : -16 }}
@@ -431,7 +651,8 @@ export default function PrompterPage() {
           type="button"
           onClick={exit}
           aria-label="خروج"
-          className="grid size-11 place-items-center rounded-full bg-white/10 backdrop-blur-xl transition-colors hover:bg-white/20"
+          title="خروج"
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-white/10 backdrop-blur-xl transition-colors hover:bg-white/20"
         >
           <X size={20} />
         </button>
@@ -459,16 +680,13 @@ export default function PrompterPage() {
           !showChrome && 'pointer-events-none',
         )}
       >
-        {voiceError && (
-          <p
-            role="alert"
-            className="mx-auto mb-3 w-fit rounded-full bg-white/10 px-4 py-2 text-sm text-white/90 backdrop-blur-xl"
-          >
-            {voiceError}
+        {prefs.voice && (
+          <p className="mx-auto mb-3 w-fit rounded-full bg-white/10 px-4 py-1.5 text-xs text-white/75 backdrop-blur-xl">
+            المس أي كلمة لإعادة المزامنة
           </p>
         )}
         <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-3 rounded-[26px] border border-white/10 bg-white/[0.07] p-3 backdrop-blur-2xl">
-          <CtlButton label="من البداية" onClick={restart}>
+          <CtlButton label="من البداية" text="من البداية" onClick={restart}>
             <RotateCcw size={19} />
           </CtlButton>
           <div className="flex items-center gap-1 rounded-2xl bg-white/5 p-1">
@@ -491,7 +709,8 @@ export default function PrompterPage() {
           <button
             type="button"
             onClick={toggle}
-            aria-label={playing ? 'إيقاف' : 'تشغيل'}
+            aria-label={playing || countdown !== null ? 'إيقاف' : 'تشغيل'}
+            title={playing || countdown !== null ? 'إيقاف' : 'تشغيل'}
             className="grid size-16 place-items-center rounded-full bg-accent-gradient-strong text-white shadow-[0_12px_30px_-10px_var(--accent)] transition-transform active:scale-90"
           >
             {playing || countdown !== null ? (
@@ -502,7 +721,7 @@ export default function PrompterPage() {
           </button>
           <label
             className={cn(
-              'flex items-center gap-2.5 rounded-2xl bg-white/5 px-3 py-2',
+              'flex min-h-11 items-center gap-2.5 rounded-2xl bg-white/5 px-3',
               prefs.voice && 'hidden',
             )}
           >
@@ -514,17 +733,46 @@ export default function PrompterPage() {
               value={prefs.speed}
               onChange={(e) => setPrefs((p) => ({ ...p, speed: Number(e.target.value) }))}
               aria-label="سرعة التمرير"
-              className="w-24 accent-[var(--accent)]"
+              className={cn(
+                'h-11 w-36 cursor-pointer appearance-none bg-transparent accent-[var(--accent)]',
+                '[&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/20',
+                '[&::-webkit-slider-thumb]:-mt-2.5 [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md',
+                '[&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-white/20',
+                '[&::-moz-range-thumb]:size-7 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white',
+              )}
             />
-            <span className="w-4 text-sm font-semibold">
+            <span className="w-5 text-center text-sm font-semibold">
               <span className="num">{prefs.speed}</span>
             </span>
           </label>
-          <CtlButton label="يتبع الصوت" active={prefs.voice} onClick={toggleVoice}>
+          <CtlButton
+            label="يتبع الصوت"
+            text="يتبع الصوت"
+            active={prefs.voice}
+            onClick={toggleVoice}
+          >
             <Mic size={19} />
           </CtlButton>
+          {prefs.voice && (
+            <label className="flex min-h-11 items-center gap-2 rounded-2xl bg-white/5 ps-3">
+              <span className="text-xs text-white/60">اللهجة</span>
+              <select
+                value={lang}
+                onChange={(e) => chooseLang(parseDialect(e.target.value))}
+                aria-label="لهجة التعرّف على الكلام"
+                className="min-h-11 rounded-2xl bg-transparent pe-3 ps-1 text-sm font-semibold text-white outline-none"
+              >
+                {DIALECTS.map((d) => (
+                  <option key={d.code} value={d.code} className="bg-[#14141a] text-white">
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <CtlButton
             label="عكس الصورة للمرآة"
+            text="مرآة"
             active={prefs.mirror}
             onClick={() => setPrefs((p) => ({ ...p, mirror: !p.mirror }))}
           >
@@ -541,17 +789,31 @@ export default function PrompterPage() {
           />
         </div>
       </motion.div>
+
+      {dialog && (
+        <PrompterDialog
+          dialog={dialog}
+          onContinueVoice={onContinueVoice}
+          onSteady={onSteady}
+          onRetry={onRetry}
+          onEdit={onEdit}
+          onFilmAnyway={onFilmAnyway}
+        />
+      )}
     </div>
   );
 }
 
 function CtlButton({
   label,
+  text,
   onClick,
   children,
   active,
 }: {
   label: string;
+  /** A visible caption under the icon, for buttons that are only an icon otherwise. */
+  text?: string;
   onClick: () => void;
   children: React.ReactNode;
   active?: boolean;
@@ -564,11 +826,13 @@ function CtlButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'grid size-11 place-items-center rounded-xl transition-colors active:scale-90',
+        'flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-xl transition-colors active:scale-90',
+        text ? 'px-2.5 py-1.5' : 'size-11',
         active ? 'bg-white text-black' : 'text-white/85 hover:bg-white/10',
       )}
     >
       {children}
+      {text && <span className="text-xs leading-none font-medium">{text}</span>}
     </button>
   );
 }

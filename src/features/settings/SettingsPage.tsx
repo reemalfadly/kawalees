@@ -2,10 +2,13 @@
 import {
   Bug,
   Check,
+  ClipboardCopy,
   Download,
   FlaskConical,
   HardDrive,
   History,
+  LifeBuoy,
+  MessagesSquare,
   MonitorSmartphone,
   MoonStar,
   Palette,
@@ -23,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router';
 import { Page, PageHeader } from '@/components/layout/Page';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -37,7 +41,7 @@ import { Switch } from '@/components/ui/Switch';
 import { useLiveIdeas, usePillars, useSettings } from '@/hooks/data';
 import {
   downloadJson,
-  exportBackup,
+  exportAndDownload,
   parseBackup,
   restoreBackup,
   restoreSnapshot,
@@ -46,16 +50,26 @@ import {
 } from '@/lib/backup';
 import { ACCENT_META, AVATARS, PLATFORM_META } from '@/lib/catalog';
 import { cn } from '@/lib/cn';
-import { db } from '@/lib/db';
+import { db, requestPersistentStorage, storagePersistence } from '@/lib/db';
 import { formatDate, todayKey } from '@/lib/dates';
 import { formatNumber, plural, WORDS } from '@/lib/format';
 import { deletePillar, savePillar, updateSettings } from '@/lib/repo';
 import { isDemoData } from '@/lib/seed';
-import { AUTHOR, COPYRIGHT, LINKS } from '@/lib/about';
+import {
+  AUTHOR,
+  COPYRIGHT,
+  INSTALL_SAVES_NOTE,
+  LINKS,
+  OFFLINE_NOTE,
+  PRIVACY_NOTE,
+  TELEGRAM_URL,
+} from '@/lib/about';
+import { daysSince, getLastExportAt, REMINDER_DAYS } from '@/lib/protect';
 import { invisibleMark } from '@/lib/provenance';
 import { trackError } from '@/lib/tracker';
 import { ACCENTS, PLATFORMS, type SnapshotReason } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
+import { copyErrorLog } from '@/features/help/copyErrorLog';
 import { InstallGuide } from '@/features/install/InstallGuide';
 
 function Section({
@@ -123,6 +137,8 @@ export default function SettingsPage() {
   const pillars = usePillars();
   const demo = isDemoData(useLiveIdeas());
   const setFreshOpen = useUI((s) => s.setFreshOpen);
+  const setHelpOpen = useUI((s) => s.setHelpOpen);
+  const [params, setParams] = useSearchParams();
   const [name, setName] = useState(settings.name);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
@@ -136,30 +152,42 @@ export default function SettingsPage() {
     { ideas: 0, stats: 0 },
   );
 
+  // `#/settings?help=1` opens the help sheet directly (a link from anywhere in the app).
+  useEffect(() => {
+    if (params.get('help') !== '1') return;
+    setHelpOpen(true);
+    params.delete('help');
+    setParams(params, { replace: true });
+  }, [params, setParams, setHelpOpen]);
+
   const saveName = () => {
     const clean = name.trim();
     if (clean !== settings.name) void updateSettings({ name: clean });
   };
 
   const exportNow = async () => {
-    const backup = await exportBackup();
-    downloadJson(`kawalees-backup-${todayKey()}.json`, backup);
-    toast({
-      title: 'انحفظت النسخة الاحتياطية',
-      description: 'الملف نزل على الجهاز',
-      tone: 'success',
-    });
+    try {
+      await exportAndDownload();
+      toast({
+        title: 'انحفظت النسخة الاحتياطية',
+        description: 'الملف نزل على الجهاز',
+        tone: 'success',
+      });
+    } catch (e) {
+      void trackError(e);
+      toast({ title: 'تعذّر التصدير', tone: 'error' });
+    }
   };
 
   const importFile = async (file: File) => {
     const parsed = parseBackup(await file.text());
     if (!parsed.ok) {
-      toast({ title: 'ما قدرنا نقرأ الملف', description: parsed.error, tone: 'error' });
+      toast({ title: 'تعذّرت قراءة الملف', description: parsed.error, tone: 'error' });
       return;
     }
     setConfirm({
       title: 'استيراد النسخة؟',
-      description: `بتتبدل البيانات الحالية بـ ${plural(parsed.backup.data.ideas.length, WORDS.idea)} و${plural(parsed.backup.data.stats.length, WORDS.entry)} من الملف. قبلها ناخذ نسخة من الحالي، والرجوع لها متاح بأي وقت.`,
+      description: `ستُستبدل البيانات الحالية بـ ${plural(parsed.backup.data.ideas.length, WORDS.idea)} و${plural(parsed.backup.data.stats.length, WORDS.entry)} من الملف. تؤخذ قبلها نسخة من الحالية، والرجوع إليها متاح في أي وقت.`,
       action: 'استيراد',
       run: async () => {
         await takeSnapshot('before-import');
@@ -176,7 +204,7 @@ export default function SettingsPage() {
     } catch (e) {
       void trackError(e);
       toast({
-        title: 'صار خلل',
+        title: 'حدث خلل',
         description: e instanceof Error ? e.message : undefined,
         tone: 'error',
       });
@@ -233,7 +261,7 @@ export default function SettingsPage() {
         <Section
           icon={Palette}
           title="المظهر"
-          description="الألوان تتغير فوراً بكل التطبيق"
+          description="تتغير الألوان فوراً في كل التطبيق"
           from="#a78bfa"
           to="#d946ef"
         >
@@ -283,7 +311,7 @@ export default function SettingsPage() {
               onChange={(celebrations) => void updateSettings({ celebrations })}
             />
           </Row>
-          <Row label="الاهتزاز عند اللمس" hint="على الأجهزة اللي تدعمه">
+          <Row label="الاهتزاز عند اللمس" hint="على الأجهزة التي تدعمه">
             <Switch
               label="الاهتزاز عند اللمس"
               checked={settings.haptics}
@@ -313,7 +341,7 @@ export default function SettingsPage() {
                         ? settings.platforms.filter((x) => x !== p)
                         : [...settings.platforms, p];
                       if (next.length === 0) {
-                        toast({ title: 'لازم منصة وحدة على الأقل' });
+                        toast({ title: 'يلزم اختيار منصة واحدة على الأقل' });
                         return;
                       }
                       void updateSettings({ platforms: PLATFORMS.filter((x) => next.includes(x)) });
@@ -325,7 +353,7 @@ export default function SettingsPage() {
               })}
             </div>
           </Row>
-          <Row label="هدف النشر الأسبوعي" hint="كم محتوى بالأسبوع">
+          <Row label="هدف النشر الأسبوعي" hint="كم محتوى في الأسبوع">
             <div className="flex items-center gap-2">
               <IconButton
                 label="تقليل"
@@ -392,7 +420,7 @@ export default function SettingsPage() {
           id="data"
           icon={ShieldCheck}
           title="البيانات والحماية"
-          description="كل شي محفوظ على جهازك، ومحمي بنسخ تلقائية"
+          description="بياناتك على جهازك، ومحمية بنسخ تلقائية"
           from="#34d399"
           to="#0d9488"
         >
@@ -452,16 +480,16 @@ export default function SettingsPage() {
                   toast(
                     snap
                       ? { title: 'انحفظت نسخة', tone: 'success' }
-                      : { title: 'ما في بيانات للنسخ' },
+                      : { title: 'لا توجد بيانات للنسخ' },
                   );
                 }}
               >
-                نسخة الحين
+                نسخة الآن
               </Button>
             </div>
             {snapshots.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-line px-4 py-5 text-center text-sm text-ink-3">
-                أول نسخة تلقائية تنحفظ بكرة
+                تُحفظ أول نسخة تلقائية غداً
               </p>
             ) : (
               <ul className="flex flex-col gap-1">
@@ -482,13 +510,13 @@ export default function SettingsPage() {
                       icon={<RotateCcw size={15} />}
                       onClick={() =>
                         setConfirm({
-                          title: 'استرجاع هالنسخة؟',
+                          title: 'استرجاع هذه النسخة؟',
                           description:
-                            'البيانات الحالية بتتبدل بهالنسخة. قبلها ناخذ نسخة من الحالي احتياط.',
+                            'ستُستبدل البيانات الحالية بهذه النسخة. تؤخذ قبلها نسخة احتياطية من الحالية.',
                           action: 'استرجاع',
                           run: async () => {
                             await restoreSnapshot(s.id!);
-                            toast({ title: 'رجعت النسخة', tone: 'success' });
+                            toast({ title: 'عادت النسخة', tone: 'success' });
                           },
                         })
                       }
@@ -502,7 +530,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5">
-            <p className="text-xs text-ink-3">البداية من جديد بدون أي بيانات</p>
+            <p className="text-xs text-ink-3">البدء من جديد دون أي بيانات</p>
             <Button
               variant="danger"
               icon={<Trash2 size={17} />}
@@ -510,7 +538,7 @@ export default function SettingsPage() {
                 setConfirm({
                   title: 'مسح كل البيانات؟',
                   description:
-                    'بتنمسح كل الأفكار والأرقام والإعدادات، وبترجع لشاشة البداية. تبقى نسخة احتياطية في «النسخ التلقائية».',
+                    'ستُمسح كل الأفكار والأرقام والإعدادات، ثم تعود شاشة البداية. تبقى نسخة احتياطية في «النسخ التلقائية».',
                   action: 'مسح الكل',
                   danger: true,
                   run: startFresh,
@@ -569,6 +597,14 @@ export default function SettingsPage() {
                 >
                   تصدير السجل
                 </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<ClipboardCopy size={15} />}
+                  onClick={() => void copyErrorLog()}
+                >
+                  نسخ السجل
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => void db.errors.clear()}>
                   مسح السجل
                 </Button>
@@ -576,6 +612,8 @@ export default function SettingsPage() {
             </>
           )}
         </Section>
+
+        <HelpSection />
       </div>
 
       <About />
@@ -605,7 +643,7 @@ export default function SettingsPage() {
       >
         <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-4 text-sm text-ink-2">
           <ShieldCheck size={20} className="shrink-0 text-good" />
-          الحارس ياخذ نسخة احتياطية قبل أي تغيير كبير
+          تؤخذ نسخة احتياطية تلقائياً قبل أي تغيير كبير
         </div>
       </Sheet>
     </Page>
@@ -613,42 +651,88 @@ export default function SettingsPage() {
 }
 
 function StorageStatus({ ideas, stats }: { ideas: number; stats: number }) {
-  const [info, setInfo] = useState<{ persisted: boolean; usage: number | null }>({
-    persisted: false,
-    usage: null,
-  });
+  const [info, setInfo] = useState<{
+    supported: boolean;
+    persisted: boolean;
+    usage: number | null;
+  }>({ supported: true, persisted: false, usage: null });
+  const lastExport = useLiveQuery(async () => ({ at: await getLastExportAt() }), [], undefined);
+
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const persisted = (await navigator.storage?.persisted?.().catch(() => false)) ?? false;
+      const { supported, persisted } = await storagePersistence();
       const est = await navigator.storage?.estimate?.().catch(() => null);
-      if (alive) setInfo({ persisted, usage: est?.usage ?? null });
+      if (alive) setInfo({ supported, persisted, usage: est?.usage ?? null });
     })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [tick]);
+
+  const askAgain = async () => {
+    const granted = await requestPersistentStorage();
+    setTick((t) => t + 1);
+    toast(
+      granted
+        ? { title: 'فُعّلت الحماية الدائمة', tone: 'success' }
+        : {
+            title: 'لم يمنح المتصفح الحماية الدائمة',
+            description: `${INSTALL_SAVES_NOTE}، وتصدير نسخة دورياً يكمل الحماية`,
+          },
+    );
+  };
+
+  const at = lastExport?.at ?? null;
+  const stale = ideas > 0 && (at === null || daysSince(at) >= REMINDER_DAYS);
+  const protection = !info.supported ? 'غير مدعومة' : info.persisted ? 'مفعّلة' : 'غير مفعّلة';
+
   return (
-    <div className="grid grid-cols-3 gap-2.5">
-      <Metric
-        icon={<HardDrive size={16} />}
-        label="الحجم"
-        value={info.usage == null ? '—' : `${(info.usage / 1024 / 1024).toFixed(1)} MB`}
-      />
-      <Metric
-        icon={<Layers size={16} />}
-        label="المحتوى"
-        value={`${formatNumber(ideas)} فكرة · ${formatNumber(stats)} رقم`}
-      />
-      <Metric
-        icon={<ShieldCheck size={16} />}
-        label="حماية التخزين"
-        value={
-          <span className={info.persisted ? 'text-good' : 'text-ink-2'}>
-            {info.persisted ? 'مفعّلة' : 'عادية'}
-          </span>
-        }
-      />
+    <div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <Metric
+          icon={<HardDrive size={16} />}
+          label="الحجم"
+          value={info.usage == null ? '—' : `${(info.usage / 1024 / 1024).toFixed(1)} MB`}
+        />
+        <Metric
+          icon={<Layers size={16} />}
+          label="المحتوى"
+          value={`${formatNumber(ideas)} فكرة · ${formatNumber(stats)} رقم`}
+        />
+        <Metric
+          icon={<ShieldCheck size={16} />}
+          label="التخزين الدائم"
+          value={<span className={info.persisted ? 'text-good' : 'text-ink-2'}>{protection}</span>}
+        />
+        <Metric
+          icon={<History size={16} />}
+          label="آخر نسخة احتياطية"
+          value={
+            lastExport === undefined ? (
+              '—'
+            ) : at === null ? (
+              <span className={stale ? 'text-warn' : 'text-ink-2'}>لم تُصدَّر بعد</span>
+            ) : (
+              <span className={stale ? 'text-warn' : 'text-ink'}>
+                {formatDate.dayMonthShort(new Date(at))}
+              </span>
+            )
+          }
+        />
+      </div>
+      {info.supported && !info.persisted && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl bg-surface-2 p-3 ps-4">
+          <p className="min-w-0 flex-1 text-xs leading-5 text-ink-3">
+            لم تُفعَّل الحماية الدائمة بعد، فقد يُنظَّف التخزين عند امتلاء الجهاز.{' '}
+            {INSTALL_SAVES_NOTE}.
+          </p>
+          <Button variant="secondary" size="sm" onClick={() => void askAgain()}>
+            طلب الحماية
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -680,7 +764,7 @@ function PillarsSection({ pillars }: { pillars: { id: string; name: string; emoj
     <Section
       icon={Palette}
       title="محاور المحتوى"
-      description="المواضيع الرئيسية اللي تدور عليها أفكارك"
+      description="المواضيع الرئيسية التي تدور حولها أفكارك"
       from="#fb7185"
       to="#e11d48"
     >
@@ -745,13 +829,53 @@ function PillarsSection({ pillars }: { pillars: { id: string; name: string; emoj
   );
 }
 
+/* Help and support: the questions people ask, the way to reach support, the error log. */
+function HelpSection() {
+  const setHelpOpen = useUI((s) => s.setHelpOpen);
+  return (
+    <Section
+      id="help"
+      icon={LifeBuoy}
+      title="المساعدة والدعم"
+      description="أسئلة شائعة، والخصوصية، والتواصل"
+      from="#38bdf8"
+      to="#2563eb"
+    >
+      <div className="flex flex-wrap gap-2.5">
+        <Button variant="primary" icon={<LifeBuoy size={17} />} onClick={() => setHelpOpen(true)}>
+          الأسئلة الشائعة
+        </Button>
+        {TELEGRAM_URL && (
+          <a
+            href={TELEGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            data-ripple
+            className="inline-flex h-11 items-center gap-2 rounded-[14px] border border-line bg-surface-2 px-5 text-[15px] font-semibold text-ink transition-colors hover:bg-surface-3"
+          >
+            <MessagesSquare size={17} aria-hidden /> قناة الدعم
+          </a>
+        )}
+        <Button
+          variant="secondary"
+          icon={<ClipboardCopy size={17} />}
+          onClick={() => void copyErrorLog()}
+        >
+          نسخ سجل الأخطاء
+        </Button>
+      </div>
+      <p className="mt-4 text-xs leading-5 text-ink-3">{PRIVACY_NOTE}</p>
+    </Section>
+  );
+}
+
 function InstallSection() {
   return (
     <Section
       id="install"
       icon={Smartphone}
       title="تثبيت التطبيق"
-      description="على الجوال والآيباد والكمبيوتر، ويشتغل بدون نت"
+      description={`على الجوال والآيباد والكمبيوتر. ${OFFLINE_NOTE}`}
       from="#60a5fa"
       to="#2563eb"
     >
@@ -784,9 +908,7 @@ function About() {
       <p dir="ltr" className="font-display text-lg font-semibold text-ink">
         By: <span className="text-gradient">{AUTHOR}</span>
       </p>
-      <p className="max-w-md text-sm leading-6 text-ink-2">
-        كل البيانات محفوظة على هالجهاز فقط. ما في حسابات، ولا إعلانات، ولا تتبع.
-      </p>
+      <p className="max-w-md text-sm leading-6 text-ink-2">{PRIVACY_NOTE}</p>
       <div className="flex flex-wrap justify-center gap-2">
         {links.map((l) => (
           <a

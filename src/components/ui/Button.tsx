@@ -14,16 +14,16 @@ const base =
   'active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45';
 
 const sizes: Record<Size, string> = {
-  sm: 'h-9 px-3.5 text-sm rounded-xl',
+  sm: 'h-9 px-3.5 text-sm rounded-xl tap:h-11',
   md: 'h-11 px-5 text-[15px] rounded-[14px]',
   lg: 'h-13 px-7 text-base rounded-2xl',
 };
 
 const variants: Record<Variant, string> = {
   primary:
-    'text-white bg-accent-gradient-strong ' +
+    'text-on-accent bg-accent-gradient-strong ' +
     'shadow-[inset_0_1px_0_rgb(255_255_255/0.3),inset_0_-1px_0_rgb(0_0_0/0.12),0_1px_2px_rgb(0_0_0/0.18),0_10px_26px_-10px_var(--accent)] ' +
-    'hover:brightness-110 hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.3),inset_0_-1px_0_rgb(0_0_0/0.12),0_2px_4px_rgb(0_0_0/0.18),0_16px_34px_-10px_var(--accent)] ' +
+    'hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.3),inset_0_-1px_0_rgb(0_0_0/0.12),0_2px_4px_rgb(0_0_0/0.18),0_16px_34px_-10px_var(--accent)] ' +
     '[@media(hover:hover)]:hover:-translate-y-px',
   tonal:
     'bg-accent-soft text-accent-ink hover:bg-[color-mix(in_oklab,var(--accent)_22%,transparent)]',
@@ -74,8 +74,8 @@ export interface IconButtonProps extends Omit<ComponentProps<'button'>, 'aria-la
 }
 
 const iconSizes = {
-  sm: 'size-8 rounded-xl',
-  md: 'size-10 rounded-[14px]',
+  sm: 'size-8 rounded-xl tap:size-11',
+  md: 'size-10 rounded-[14px] tap:size-11',
   lg: 'size-12 rounded-2xl',
 };
 
@@ -102,7 +102,7 @@ export function IconButton({
           'border border-line bg-surface-2 text-ink shadow-[var(--edge),0_1px_2px_rgb(0_0_0/0.06)] hover:bg-surface-3',
         variant === 'tonal' && 'bg-accent-soft text-accent-ink',
         variant === 'primary' &&
-          'bg-accent-gradient-strong text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.3),0_10px_26px_-10px_var(--accent)]',
+          'bg-accent-gradient-strong text-on-accent shadow-[inset_0_1px_0_rgb(255_255_255/0.3),0_10px_26px_-10px_var(--accent)]',
         className,
       )}
       {...rest}

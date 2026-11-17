@@ -6,11 +6,11 @@ import type { SeriesPoint } from '@/lib/stats';
 import { monotonePath, niceDomain } from './scale';
 import { useWidth } from './useWidth';
 
-/* Single-series line over time. Time runs left-to-right (the convention readers
-   of any script expect from a growth chart), newest value labelled at the end.
-   2px line, 10% wash, hairline grid, crosshair tooltip, screen-reader table. */
+/* Single-series line over time. Time runs with the reading direction of the page:
+   the oldest point sits on the right beside the value axis, the newest on the left
+   and labelled. 2px line, 10% wash, hairline grid, crosshair tooltip, screen-reader table. */
 
-const PAD = { top: 20, bottom: 30, start: 52, end: 18 };
+const PAD = { top: 20, bottom: 30, axis: 52, edge: 26 };
 
 export function LineChart({
   points,
@@ -31,9 +31,9 @@ export function LineChart({
     const dom = niceDomain(Math.min(...values), Math.max(...values), 4);
     const first = points[0]!.date;
     const span = Math.max(1, diffDays(points[points.length - 1]!.date, first));
-    const innerW = Math.max(10, width - PAD.start - PAD.end);
+    const innerW = Math.max(10, width - PAD.axis - PAD.edge);
     const innerH = height - PAD.top - PAD.bottom;
-    const x = (date: string) => PAD.start + (diffDays(date, first) / span) * innerW;
+    const x = (date: string) => width - PAD.axis - (diffDays(date, first) / span) * innerW;
     const y = (v: number) => PAD.top + innerH - ((v - dom.min) / (dom.max - dom.min)) * innerH;
     const pts = points.map((p) => ({
       x: points.length === 1 ? width / 2 : x(p.date),
@@ -44,10 +44,12 @@ export function LineChart({
 
   if (!geo) return null;
   const { dom, pts, y } = geo;
-  const path = monotonePath(pts);
+  // The path is drawn left to right, so it walks the points from newest to oldest.
+  const drawn = [...pts].reverse();
+  const path = monotonePath(drawn);
   const last = pts[pts.length - 1]!;
   const baseline = height - PAD.bottom;
-  const area = `${path} L${last.x},${baseline} L${pts[0]!.x},${baseline} Z`;
+  const area = `${path} L${drawn[drawn.length - 1]!.x},${baseline} L${drawn[0]!.x},${baseline} Z`;
   const tickIdx =
     points.length <= 4
       ? points.map((_, i) => i)
@@ -96,19 +98,19 @@ export function LineChart({
         {dom.ticks.map((t) => (
           <g key={t}>
             <line
-              x1={PAD.start - 6}
-              x2={width - PAD.end}
+              x1={PAD.edge}
+              x2={width - PAD.axis + 6}
               y1={y(t)}
               y2={y(t)}
               stroke="var(--line)"
               strokeWidth={1}
             />
             <text
-              x={PAD.start - 12}
+              x={width - PAD.axis + 12}
               y={y(t)}
               dy="0.35em"
-              textAnchor="end"
-              className="fill-ink-3 text-[11px] tabular-nums"
+              textAnchor="start"
+              className="fill-ink-3 text-xs tabular-nums"
             >
               {formatCompact(t)}
             </text>
@@ -120,7 +122,7 @@ export function LineChart({
             x={pts[i]!.x}
             y={height - 8}
             textAnchor="middle"
-            className="fill-ink-3 text-[11px]"
+            className="fill-ink-3 text-xs"
           >
             {formatDate.dayMonthShort(fromDayKey(points[i]!.date))}
           </text>
@@ -156,7 +158,7 @@ export function LineChart({
           <text
             x={last.x}
             y={last.y - 14}
-            textAnchor="end"
+            textAnchor={points.length === 1 ? 'middle' : 'start'}
             className="fill-ink text-[12px] font-semibold tabular-nums"
           >
             {formatCompact(points[points.length - 1]!.value)}
@@ -179,7 +181,7 @@ export function LineChart({
           className="glass-strong pointer-events-none absolute z-10 -translate-x-1/2 rounded-xl px-3 py-2 text-center"
           style={{ left: Math.min(Math.max(hp.x, 60), width - 60), top: Math.max(0, hp.y - 64) }}
         >
-          <p className="text-[11px] text-ink-3">{formatDate.dayMonth(fromDayKey(hv.date))}</p>
+          <p className="text-xs text-ink-3">{formatDate.dayMonth(fromDayKey(hv.date))}</p>
           <p className="font-display text-sm font-bold text-ink">
             <span className="num">{formatNumber(hv.value)}</span>
           </p>

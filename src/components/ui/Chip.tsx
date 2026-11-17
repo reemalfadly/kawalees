@@ -16,7 +16,7 @@ export function Chip({
       aria-pressed={selected}
       data-ripple
       className={cn(
-        'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium',
+        'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium tap:h-11',
         'transition-[background-color,border-color,color,transform] duration-200 active:scale-95',
         selected
           ? 'border-transparent bg-accent-soft text-accent-ink shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_30%,transparent)]'

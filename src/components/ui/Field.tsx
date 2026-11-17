@@ -3,7 +3,7 @@ import { useId, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 const control =
-  'w-full rounded-[14px] border border-line bg-surface-2 text-[15px] text-ink outline-none ' +
+  'w-full rounded-[14px] border border-line bg-surface-2 text-base text-ink outline-none ' +
   'transition-[border-color,background-color,box-shadow] duration-200 ' +
   'hover:border-line-2 focus:border-accent focus:bg-surface-3 focus:shadow-[0_0_0_4px_var(--accent-softer)]';
 
@@ -54,8 +54,19 @@ export function Field({
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-line bg-surface-2 px-1.5 font-sans text-[11px] font-medium text-ink-3">
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-line bg-surface-2 px-1.5 font-sans text-xs font-medium text-ink-3">
       {children}
     </kbd>
+  );
+}
+
+/** Keyboard shortcut keys in reading order. Always left-to-right, so ⌘ then K never flips in RTL. */
+export function KbdGroup({ keys, className }: { keys: string[]; className?: string }) {
+  return (
+    <span dir="ltr" className={cn('inline-flex shrink-0 gap-1', className)}>
+      {keys.map((k) => (
+        <Kbd key={k}>{k}</Kbd>
+      ))}
+    </span>
   );
 }

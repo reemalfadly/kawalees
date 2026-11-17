@@ -15,11 +15,13 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { IconButton } from '@/components/ui/Button';
 import { STAGE_ICONS } from '@/components/ui/StageBadge';
 import { STAGE_META } from '@/lib/catalog';
 import { cn } from '@/lib/cn';
+import { HIT_ICON } from '@/lib/touch';
 import { STAGES, type Idea, type Stage } from '@/lib/types';
 import { useUI } from '@/store/ui';
 import { IdeaCard } from './IdeaCard';
@@ -98,7 +100,10 @@ function Column({ stage, ideas, focused }: { stage: Stage; ideas: Idea[]; focuse
           type="button"
           aria-label={`فكرة جديدة في «${meta.label}»`}
           onClick={() => openCapture({ stage })}
-          className="ms-auto grid size-8 place-items-center rounded-xl text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+          className={cn(
+            'ms-auto grid size-8 place-items-center rounded-xl text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink',
+            HIT_ICON,
+          )}
         >
           <Plus size={17} />
         </button>
@@ -127,9 +132,51 @@ function Column({ stage, ideas, focused }: { stage: Stage; ideas: Idea[]; focuse
   );
 }
 
+/** Which sides of a horizontal scroller still hide content (works in RTL, where scrollLeft is negative). */
+function useScrollEdges() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    const pos = Math.abs(el.scrollLeft);
+    const next = { start: pos > 4, end: max - pos > 4 };
+    setEdges((prev) => (prev.start === next.start && prev.end === next.end ? prev : next));
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', update);
+      ro.disconnect();
+    };
+  }, [update]);
+
+  /** `toward` 1 scrolls to the end of the row (the left in RTL), -1 back to the start. */
+  const page = (toward: 1 | -1) => {
+    const el = ref.current;
+    if (!el) return;
+    const rtl = getComputedStyle(el).direction === 'rtl';
+    el.scrollBy({
+      left: (rtl ? -1 : 1) * toward * el.clientWidth * 0.8,
+      behavior: 'smooth',
+    });
+  };
+
+  return { ref, edges, page, update };
+}
+
 export function Board({ ideas, focus }: { ideas: Idea[]; focus: Stage | null }) {
   const { moveTo } = useIdeaActions();
   const [active, setActive] = useState<Idea | null>(null);
+  const { ref: scroller, edges, page } = useScrollEdges();
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
@@ -181,11 +228,56 @@ export function Board({ ideas, focus }: { ideas: Idea[]; focus: Stage | null }) 
         },
       }}
     >
-      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 md:-mx-8 md:snap-none md:px-8">
-        {STAGES.map((s) => (
-          <Column key={s} stage={s} ideas={byStage(s)} focused={focus === s} />
-        ))}
+      <div className="relative -mx-4 sm:-mx-6 md:-mx-8">
+        <div
+          ref={scroller}
+          className="no-scrollbar flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-4 sm:px-6 md:snap-none md:px-8"
+        >
+          {STAGES.map((s) => (
+            <Column key={s} stage={s} ideas={byStage(s)} focused={focus === s} />
+          ))}
+        </div>
+        {/* Edge fades and arrows show that more stages wait beyond the visible ones. */}
+        <div
+          className={cn(
+            'pointer-events-none absolute inset-y-0 start-0 w-12 bg-gradient-to-l from-bg to-transparent transition-opacity duration-200 sm:w-16',
+            edges.start ? 'opacity-100' : 'opacity-0',
+          )}
+          aria-hidden
+        />
+        <div
+          className={cn(
+            'pointer-events-none absolute inset-y-0 end-0 w-12 bg-gradient-to-r from-bg to-transparent transition-opacity duration-200 sm:w-16',
+            edges.end ? 'opacity-100' : 'opacity-0',
+          )}
+          aria-hidden
+        />
+        {edges.start && (
+          <IconButton
+            label="المراحل السابقة"
+            variant="secondary"
+            className="absolute start-3 top-1/3 hidden shadow-lg md:inline-flex"
+            onClick={() => page(-1)}
+          >
+            <ChevronRight size={19} />
+          </IconButton>
+        )}
+        {edges.end && (
+          <IconButton
+            label="المراحل التالية"
+            variant="secondary"
+            className="absolute end-3 top-1/3 hidden shadow-lg md:inline-flex"
+            onClick={() => page(1)}
+          >
+            <ChevronLeft size={19} />
+          </IconButton>
+        )}
       </div>
+      {(edges.start || edges.end) && (
+        <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-ink-3">
+          مرّر لرؤية بقية المراحل <ArrowLeft size={13} aria-hidden />
+        </p>
+      )}
       <DragOverlay dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }}>
         {active && <IdeaCard idea={active} compact overlay />}
       </DragOverlay>

@@ -2,6 +2,7 @@
 import {
   ArrowLeft,
   CalendarDays,
+  Check,
   CornerDownLeft,
   Flame,
   Layers,
@@ -25,6 +26,7 @@ import { STAGE_ICONS } from '@/components/ui/StageBadge';
 import { DemoBanner } from '@/features/demo/DemoBanner';
 import { InstallBanner } from '@/features/install/InstallBanner';
 import { IdeaRow } from '@/features/ideas/IdeaRow';
+import { Glyph, PeriodGlyph } from '@/features/stats/glyphs';
 import { useLiveIdeas, useSettings } from '@/hooks/data';
 import { useLevel, useStreak, useWeekProgress } from '@/hooks/useProgress';
 import { SPARK_PROMPTS, STAGE_META } from '@/lib/catalog';
@@ -34,6 +36,7 @@ import { formatNumber, plural, pluralWord, WORDS } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { createIdea } from '@/lib/repo';
 import { countByStage, publishedDayKey, upNext } from '@/lib/stats';
+import { HIT_ICON, HIT_LINK } from '@/lib/touch';
 import { STAGES } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
 
@@ -121,7 +124,11 @@ export default function HomePage() {
           <>
             {hello.text}
             {settings.name && <span className="text-gradient">، {settings.name}</span>}{' '}
-            <span aria-hidden>{hello.emoji}</span>
+            <PeriodGlyph
+              period={hello.period}
+              size={30}
+              className="inline-block align-[-0.12em] text-accent-ink"
+            />
           </>
         }
         actions={
@@ -132,7 +139,7 @@ export default function HomePage() {
           >
             <Search size={16} />
             بحث
-            <span className="flex gap-1">
+            <span className="flex gap-1" dir="ltr">
               <Kbd>⌘</Kbd>
               <Kbd>K</Kbd>
             </span>
@@ -172,7 +179,7 @@ export default function HomePage() {
                     <AnimatedNumber value={week.published} />
                     <span className="text-lg text-ink-3">/{week.goal}</span>
                   </p>
-                  <p className="mt-1 text-[11px] font-medium text-ink-3">هالأسبوع</p>
+                  <p className="mt-1 text-xs font-medium text-ink-3">هالأسبوع</p>
                 </div>
               </ProgressRing>
               <div className="min-w-0 flex-1">
@@ -189,13 +196,17 @@ export default function HomePage() {
                   )}
                 </h2>
                 {week.goalStreak > 1 && (
-                  <p className="mt-1.5 text-sm text-ink-2">
-                    🔥 {plural(week.goalStreak, WORDS.week)} ورا بعض محققة الهدف
+                  <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm text-ink-2">
+                    <Flame size={15} className="text-accent-ink" aria-hidden />
+                    {plural(week.goalStreak, WORDS.week)} ورا بعض محققة الهدف
                   </p>
                 )}
                 <Link
                   to="/calendar"
-                  className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent-ink hover:underline"
+                  className={cn(
+                    'mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent-ink hover:underline',
+                    HIT_LINK,
+                  )}
                 >
                   خطة الأسبوع <ArrowLeft size={15} />
                 </Link>
@@ -218,7 +229,7 @@ export default function HomePage() {
                   >
                     <span
                       className={cn(
-                        'text-[11px] font-medium',
+                        'text-xs font-medium',
                         isToday ? 'text-accent-ink' : 'text-ink-3',
                       )}
                     >
@@ -275,19 +286,24 @@ export default function HomePage() {
               </div>
             </div>
             <p className="mt-3 text-sm leading-6 text-ink-2">
-              {streak.current === 0
-                ? 'أي خطوة اليوم، ولو فكرة وحدة، تشعل السلسلة'
-                : streak.activeToday
-                  ? 'اليوم محسوب ✓ الإبداع مستمر'
-                  : 'خطوة وحدة اليوم تحافظ على السلسلة'}
+              {streak.current === 0 ? (
+                'أي خطوة اليوم، ولو فكرة وحدة، تشعل السلسلة'
+              ) : streak.activeToday ? (
+                <span className="inline-flex items-center gap-1.5">
+                  اليوم محسوب <Check size={15} className="text-good" aria-hidden /> الإبداع مستمر
+                </span>
+              ) : (
+                'خطوة وحدة اليوم تحافظ على السلسلة'
+              )}
               {streak.best > streak.current && (
                 <span className="text-ink-3"> · أفضل سلسلة: {plural(streak.best, WORDS.day)}</span>
               )}
             </p>
             <Link to="/stats" className="mt-auto block pt-5">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-ink">
-                  <span aria-hidden>{level.emoji}</span> المستوى {level.level} · {level.title}
+                <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+                  <Glyph name={level.icon} size={17} className="text-accent-ink" /> المستوى{' '}
+                  {level.level} · {level.title}
                 </span>
                 <span className="text-xs text-ink-3">
                   <span className="num">{formatNumber(level.ceil - level.xp)}</span> نقطة للمستوى
@@ -322,7 +338,10 @@ export default function HomePage() {
                 action={
                   <Link
                     to="/ideas?view=board"
-                    className="text-sm font-semibold text-accent-ink hover:underline"
+                    className={cn(
+                      'text-sm font-semibold text-accent-ink hover:underline',
+                      HIT_LINK,
+                    )}
                   >
                     اللوحة
                   </Link>
@@ -369,7 +388,7 @@ export default function HomePage() {
               action={
                 <Link
                   to="/ideas?view=board"
-                  className="text-sm font-semibold text-accent-ink hover:underline"
+                  className={cn('text-sm font-semibold text-accent-ink hover:underline', HIT_LINK)}
                 >
                   فتح اللوحة
                 </Link>
@@ -447,12 +466,17 @@ export default function HomePage() {
                 <SectionTitle title="الجاي بالجدول" className="mb-2" />
               </div>
               {upcoming.length === 0 ? (
-                <div className="px-6 pb-6 text-sm text-ink-3">
-                  ما في شي مجدول بعد.{' '}
-                  <Link to="/calendar" className="font-semibold text-accent-ink hover:underline">
-                    فتح التقويم
-                  </Link>
-                </div>
+                <EmptyState
+                  compact
+                  icon={CalendarDays}
+                  title="ما في شي مجدول بعد"
+                  description="أي فكرة تحدد لها موعد نشر بتظهر هنا"
+                  action={
+                    <Button variant="secondary" size="sm" onClick={() => navigate('/calendar')}>
+                      فتح التقويم
+                    </Button>
+                  }
+                />
               ) : (
                 <ul className="px-3 pb-3">
                   {upcoming.map((i) => {
@@ -464,9 +488,7 @@ export default function HomePage() {
                           className="flex items-center gap-3.5 rounded-2xl px-3 py-2.5 transition-colors hover:bg-surface-2"
                         >
                           <span className="flex w-11 shrink-0 flex-col items-center rounded-xl border border-line bg-surface py-1.5">
-                            <span className="text-[10px] text-ink-3">
-                              {formatDate.weekdayShort(d)}
-                            </span>
+                            <span className="text-xs text-ink-3">{formatDate.weekdayShort(d)}</span>
                             <span className="font-display text-lg leading-tight font-bold text-ink">
                               {d.getDate()}
                             </span>
@@ -512,7 +534,7 @@ function InlineCapture() {
     setValue('');
     haptics.success();
     toast({
-      title: 'انحفظت الفكرة ✨',
+      title: 'انحفظت الفكرة',
       tone: 'success',
       action: { label: 'فتح', run: () => navigate(`/idea/${idea.id}`) },
     });
@@ -530,10 +552,10 @@ function InlineCapture() {
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="فكرة طارت على بالك؟ تنكتب هنا وتنحفظ فوراً"
+        placeholder="فكرة خطرت لك؟ احفظها هنا فوراً"
         aria-label="إضافة فكرة سريعة"
         maxLength={300}
-        className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3"
+        className="h-11 min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-3"
       />
       <Button
         type="submit"
@@ -559,7 +581,7 @@ function SparkCard() {
     const idea = await createIdea({ title: prompt, spark: 2 });
     haptics.success();
     toast({
-      title: 'صارت فكرة ✨',
+      title: 'صارت فكرة',
       tone: 'success',
       action: { label: 'فتح', run: () => navigate(`/idea/${idea.id}`) },
     });
@@ -580,7 +602,12 @@ function SparkCard() {
           <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent-ink">
             <Sparkles size={13} /> شرارة اليوم
           </span>
-          <IconButton label="شرارة ثانية" size="sm" onClick={() => setOffset((o) => o + 1)}>
+          <IconButton
+            label="شرارة ثانية"
+            size="sm"
+            className={HIT_ICON}
+            onClick={() => setOffset((o) => o + 1)}
+          >
             <Shuffle size={16} />
           </IconButton>
         </div>
@@ -598,7 +625,7 @@ function SparkCard() {
           </motion.p>
         </div>
         <div className="flex gap-2">
-          <Button variant="primary" size="sm" onClick={adopt}>
+          <Button variant="secondary" size="sm" onClick={adopt}>
             تحويلها لفكرة
           </Button>
         </div>

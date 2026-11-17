@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { OFFLINE_NOTE } from '@/lib/about';
 import { toast } from '@/store/ui';
 import { Button } from '../ui/Button';
 
@@ -28,8 +29,8 @@ export function UpdatePrompt() {
   useEffect(() => {
     if (!offlineReady) return;
     toast({
-      title: 'جاهز بدون إنترنت',
-      description: 'كواليس الحين يشتغل حتى لو انقطع النت',
+      title: 'جاهز للعمل بدون إنترنت',
+      description: OFFLINE_NOTE,
       tone: 'success',
     });
     setOfflineReady(false);

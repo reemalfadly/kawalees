@@ -28,15 +28,17 @@ export function totalXp(ideas: Idea[], stats: StatEntry[]): number {
   return ideas.reduce((sum, i) => sum + ideaXp(i), 0) + stats.length * STAT_XP;
 }
 
-export const LEVELS: { title: string; emoji: string }[] = [
-  { title: 'شرارة', emoji: '✨' },
-  { title: 'وهج', emoji: '🔥' },
-  { title: 'نجمة', emoji: '⭐' },
-  { title: 'كوكب', emoji: '🪐' },
-  { title: 'مذنّب', emoji: '☄️' },
-  { title: 'مجرّة', emoji: '🌌' },
-  { title: 'سديم', emoji: '🌠' },
-  { title: 'أسطورة', emoji: '👑' },
+/* `icon` is a stable key for the line-icon set (see features/stats/glyphs.tsx);
+   `emoji` stays for places that still print text. */
+export const LEVELS: { title: string; emoji: string; icon: string }[] = [
+  { title: 'شرارة', emoji: '✨', icon: 'sparkles' },
+  { title: 'وهج', emoji: '🔥', icon: 'flame' },
+  { title: 'نجمة', emoji: '⭐', icon: 'star' },
+  { title: 'كوكب', emoji: '🪐', icon: 'globe' },
+  { title: 'مذنّب', emoji: '☄️', icon: 'rocket' },
+  { title: 'مجرّة', emoji: '🌌', icon: 'orbit' },
+  { title: 'سديم', emoji: '🌠', icon: 'moon-star' },
+  { title: 'أسطورة', emoji: '👑', icon: 'crown' },
 ];
 
 /** XP needed to reach a level: 0, 100, 300, 600, 1000, 1500… */
@@ -48,6 +50,7 @@ export interface LevelInfo {
   level: number;
   title: string;
   emoji: string;
+  icon: string;
   xp: number;
   floor: number;
   ceil: number;
@@ -65,6 +68,7 @@ export function levelFromXp(xp: number): LevelInfo {
     level,
     title: meta.title,
     emoji: meta.emoji,
+    icon: meta.icon,
     xp: safe,
     floor,
     ceil,
@@ -211,10 +215,27 @@ export interface Achievement {
   title: string;
   description: string;
   emoji: string;
+  icon: string;
   current: number;
   target: number;
   unlocked: boolean;
 }
+
+/** Icon keys the achievements use; features/stats/glyphs.tsx must know every one of them. */
+export const ACHIEVEMENT_ICON_KEYS = [
+  'lightbulb',
+  'library',
+  'rocket',
+  'waves',
+  'cog',
+  'pen-line',
+  'flame',
+  'zap',
+  'trophy',
+  'calendar-check',
+  'chart-line',
+  'globe',
+] as const;
 
 export interface AchievementContext {
   ideas: Idea[];
@@ -240,6 +261,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'first-spark',
       emoji: '💡',
+      icon: 'lightbulb',
       title: 'أول شرارة',
       description: 'سجّلت أول فكرة',
       current: live.length,
@@ -248,6 +270,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'idea-bank',
       emoji: '🏦',
+      icon: 'library',
       title: 'بنك أفكار',
       description: '25 فكرة محفوظة',
       current: live.length,
@@ -256,6 +279,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'first-publish',
       emoji: '🚀',
+      icon: 'rocket',
       title: 'أول نشر',
       description: 'نزّلت أول محتوى',
       current: published.length,
@@ -264,6 +288,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'on-a-roll',
       emoji: '🌊',
+      icon: 'waves',
       title: 'على الموجة',
       description: '10 محتويات منشورة',
       current: published.length,
@@ -272,6 +297,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'content-machine',
       emoji: '⚙️',
+      icon: 'cog',
       title: 'ماكينة محتوى',
       description: '50 محتوى منشور',
       current: published.length,
@@ -280,6 +306,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'golden-pen',
       emoji: '🖋️',
+      icon: 'pen-line',
       title: 'قلم ذهبي',
       description: '5 سكريبتات مكتملة',
       current: scripts,
@@ -288,6 +315,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'streak-7',
       emoji: '🔥',
+      icon: 'flame',
       title: '7 أيام نار',
       description: 'أسبوع كامل بدون انقطاع',
       current: best,
@@ -296,6 +324,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'streak-30',
       emoji: '🌋',
+      icon: 'zap',
       title: 'شهر بلا توقف',
       description: '30 يوم متواصل',
       current: best,
@@ -304,6 +333,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'golden-week',
       emoji: '🏆',
+      icon: 'trophy',
       title: 'أسبوع ذهبي',
       description: 'حققت هدف النشر الأسبوعي',
       current: goldenWeeks,
@@ -312,6 +342,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'planner',
       emoji: '🗓️',
+      icon: 'calendar-check',
       title: 'جدول مرتّب',
       description: '5 محتويات مجدولة',
       current: scheduled,
@@ -320,6 +351,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'analyst',
       emoji: '📈',
+      icon: 'chart-line',
       title: 'عين على الأرقام',
       description: '5 تسجيلات للأرقام',
       current: ctx.stats.length,
@@ -328,6 +360,7 @@ export function achievements(ctx: AchievementContext): Achievement[] {
     {
       id: 'everywhere',
       emoji: '🌍',
+      icon: 'globe',
       title: 'في كل مكان',
       description: 'نشرت على 3 منصات',
       current: platforms,

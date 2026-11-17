@@ -26,7 +26,7 @@ export function StartFreshSheet() {
     } catch (e) {
       void trackError(e);
       toast({
-        title: 'صار خلل',
+        title: 'حدث خلل',
         description: e instanceof Error ? e.message : undefined,
         tone: 'error',
       });
@@ -40,7 +40,7 @@ export function StartFreshSheet() {
       open={open}
       onClose={() => !busy && setOpen(false)}
       title="البدء من الصفر؟"
-      description="بتنمسح البيانات التجريبية كلها، ونرجع لشاشة البداية عشان نجهّز كواليس من جديد."
+      description="ستُمسح البيانات التجريبية كلها، ثم تعود شاشة البداية لتجهيز كواليس من جديد."
       initialFocus="none"
       footer={
         <div className="flex gap-2.5">
@@ -62,7 +62,7 @@ export function StartFreshSheet() {
     >
       <div className="flex items-center gap-3 rounded-2xl bg-surface-2 p-4 text-sm text-ink-2">
         <ShieldCheck size={20} className="shrink-0 text-good" />
-        قبل المسح ناخذ نسخة احتياطية، وتبقى في «الإعدادات ← النسخ التلقائية»
+        تؤخذ نسخة احتياطية قبل المسح، وتبقى في «الإعدادات ← النسخ التلقائية»
       </div>
     </Sheet>
   );

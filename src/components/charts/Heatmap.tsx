@@ -5,7 +5,8 @@ import { cn } from '@/lib/cn';
 import { plural, WORDS } from '@/lib/format';
 
 /* Activity heatmap: one hue, faint → strong, five steps. Columns are weeks,
-   oldest on the left and this week on the right; rows are weekdays. */
+   oldest on the right and this week on the left (the same direction as the
+   calendar and the other charts); rows are weekdays. */
 
 const LEVELS = [0, 1, 3, 5, 8];
 
@@ -30,7 +31,7 @@ export function Heatmap({ weeks }: { weeks: { day: string; count: number; future
   return (
     <div>
       <div
-        dir="ltr"
+        dir="rtl"
         className="grid gap-[3px]"
         style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
         role="img"

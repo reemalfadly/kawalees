@@ -4,10 +4,15 @@ import {
   ArrowLeft,
   ArrowUpRight,
   Lock,
+  Medal,
   Plus,
   Sparkles,
+  Target,
   Trash2,
   TrendingUp,
+  Trophy,
+  Flame,
+  type LucideIcon,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
@@ -44,7 +49,9 @@ import {
   seriesDelta,
 } from '@/lib/stats';
 import type { PlatformId } from '@/lib/types';
+import { HIT_BUTTON, HIT_ICON, HIT_LINK } from '@/lib/touch';
 import { toast } from '@/store/ui';
+import { Glyph } from './glyphs';
 
 export default function StatsPage() {
   const ideas = useLiveIdeas();
@@ -84,6 +91,7 @@ export default function StatsPage() {
     [ideas, stats, activeDays, settings.weeklyGoal, settings.weekStartsOn],
   );
   const unlocked = badges.filter((b) => b.unlocked).length;
+  const hasNumbers = settings.platforms.some((p) => stats.some((s) => s.platform === p));
   const nextLevel = LEVELS[Math.min(level.level, LEVELS.length - 1)];
 
   const tiles = [
@@ -99,14 +107,26 @@ export default function StatsPage() {
         title="الأرقام"
         subtitle={`${formatDate.monthYear(now)} · نموك بلغة الأرقام`}
         actions={
-          <Button
-            variant="primary"
-            className="hidden md:inline-flex"
-            icon={<Plus size={18} />}
-            onClick={() => setLogOpen(true)}
-          >
-            تسجيل الأرقام
-          </Button>
+          <>
+            {/* One primary per screen: when there are no numbers yet, the empty state owns it. */}
+            <Button
+              variant={hasNumbers ? 'primary' : 'outline'}
+              className="hidden md:inline-flex"
+              icon={<Plus size={18} />}
+              onClick={() => setLogOpen(true)}
+            >
+              تسجيل الأرقام
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn('md:hidden', HIT_BUTTON)}
+              icon={<Plus size={16} />}
+              onClick={() => setLogOpen(true)}
+            >
+              تسجيل الأرقام
+            </Button>
+          </>
         }
       />
 
@@ -142,10 +162,10 @@ export default function StatsPage() {
               initial={{ scale: 0.6, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 260, damping: 16 }}
-              className="grid size-20 shrink-0 place-items-center rounded-[26px] border border-line bg-surface-2 text-5xl"
+              className="grid size-20 shrink-0 place-items-center rounded-[26px] border border-line bg-surface-2 text-accent-ink"
               aria-hidden
             >
-              {level.emoji}
+              <Glyph name={level.icon} size={40} strokeWidth={1.6} />
             </motion.div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-ink-3">المستوى {level.level}</p>
@@ -161,8 +181,8 @@ export default function StatsPage() {
                 باقي <span className="num">{formatNumber(level.ceil - level.xp)}</span> نقطة
               </span>
               {nextLevel && (
-                <span>
-                  الجاي: {nextLevel.emoji} {nextLevel.title}
+                <span className="inline-flex items-center gap-1.5">
+                  الجاي: <Glyph name={nextLevel.icon} size={14} /> {nextLevel.title}
                 </span>
               )}
             </div>
@@ -177,10 +197,20 @@ export default function StatsPage() {
         {/* Streaks */}
         <Card className="md:col-span-5">
           <div className="grid h-full grid-cols-2 gap-4">
-            <StreakStat emoji="🔥" value={streak.current} label="سلسلة الإبداع" unit={WORDS.day} />
-            <StreakStat emoji="🏆" value={streak.best} label="أفضل سلسلة" unit={WORDS.day} />
-            <StreakStat emoji="🎯" value={week.goalStreak} label="أسابيع الهدف" unit={WORDS.week} />
-            <StreakStat emoji="🏅" value={unlocked} label="إنجازات" total={badges.length} />
+            <StreakStat
+              icon={Flame}
+              value={streak.current}
+              label="سلسلة الإبداع"
+              unit={WORDS.day}
+            />
+            <StreakStat icon={Trophy} value={streak.best} label="أفضل سلسلة" unit={WORDS.day} />
+            <StreakStat
+              icon={Target}
+              value={week.goalStreak}
+              label="أسابيع الهدف"
+              unit={WORDS.week}
+            />
+            <StreakStat icon={Medal} value={unlocked} label="إنجازات" total={badges.length} />
           </div>
         </Card>
 
@@ -215,7 +245,10 @@ export default function StatsPage() {
             action={
               <Link
                 to={`/recap?m=${monthKey(now)}`}
-                className="inline-flex items-center gap-1 text-sm font-semibold text-accent-ink hover:underline"
+                className={cn(
+                  'inline-flex items-center gap-1 text-sm font-semibold text-accent-ink hover:underline',
+                  HIT_LINK,
+                )}
               >
                 <Sparkles size={15} /> ملخص الشهر
               </Link>
@@ -237,12 +270,16 @@ export default function StatsPage() {
               >
                 <span
                   className={cn(
-                    'mb-2 grid size-14 place-items-center rounded-2xl text-3xl',
-                    b.unlocked ? 'bg-accent-soft' : 'bg-surface-2 grayscale',
+                    'mb-2 grid size-14 place-items-center rounded-2xl',
+                    b.unlocked ? 'bg-accent-soft text-accent-ink' : 'bg-surface-2',
                   )}
                   aria-hidden
                 >
-                  {b.unlocked ? b.emoji : <Lock size={20} className="text-ink-3" />}
+                  {b.unlocked ? (
+                    <Glyph name={b.icon} size={26} strokeWidth={1.7} />
+                  ) : (
+                    <Lock size={20} className="text-ink-3" />
+                  )}
                 </span>
                 <p className={cn('text-sm font-semibold', b.unlocked ? 'text-ink' : 'text-ink-2')}>
                   {b.title}
@@ -255,7 +292,7 @@ export default function StatsPage() {
                       label={`تقدم ${b.title}`}
                       className="h-1.5"
                     />
-                    <p className="mt-1.5 text-[11px] text-ink-3">
+                    <p className="mt-1.5 text-xs text-ink-3">
                       <span className="num">
                         {b.current}/{b.target}
                       </span>
@@ -266,17 +303,6 @@ export default function StatsPage() {
             ))}
           </ul>
         </Card>
-      </div>
-
-      <div className="fixed end-5 bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] z-30 md:hidden">
-        <Button
-          variant="primary"
-          className="rounded-full shadow-lg"
-          icon={<Plus size={18} />}
-          onClick={() => setLogOpen(true)}
-        >
-          تسجيل الأرقام
-        </Button>
       </div>
 
       <LogSheet open={logOpen} onClose={() => setLogOpen(false)} platforms={settings.platforms} />
@@ -303,13 +329,13 @@ function Delta({ value, suffix }: { value: number; suffix: string }) {
 }
 
 function StreakStat({
-  emoji,
+  icon: Icon,
   value,
   label,
   unit,
   total,
 }: {
-  emoji: string;
+  icon: LucideIcon;
   value: number;
   label: string;
   unit?: { one: string; two: string; few: string; many: string };
@@ -317,8 +343,8 @@ function StreakStat({
 }) {
   return (
     <div className="flex flex-col justify-center rounded-2xl bg-surface-2 p-4">
-      <span className="text-2xl" aria-hidden>
-        {emoji}
+      <span className="text-accent-ink" aria-hidden>
+        <Icon size={24} strokeWidth={1.8} />
       </span>
       <p className="mt-2 font-display text-2xl font-bold text-ink">
         {total != null ? (
@@ -434,7 +460,7 @@ function FollowersPanel({ onLog }: { onLog: () => void }) {
                 <IconButton
                   label="حذف التسجيل"
                   size="sm"
-                  className="ms-auto opacity-60 group-hover:opacity-100"
+                  className={cn('ms-auto opacity-60 group-hover:opacity-100', HIT_ICON)}
                   onClick={() => void remove(s.id)}
                 >
                   <Trash2 size={15} />
@@ -481,7 +507,7 @@ function LogSheet({
       views: v === null ? null : Math.round(v),
     });
     haptics.success();
-    toast({ title: 'انسجلت الأرقام 📈', tone: 'success' });
+    toast({ title: 'انسجلت الأرقام', tone: 'success' });
     setFollowers('');
     setViews('');
     onClose();

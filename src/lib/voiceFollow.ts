@@ -94,3 +94,126 @@ export function followSpeech(
   }
   return best < 0 ? pos : Math.max(pos, best + 1);
 }
+
+/* ---- Words, dialects, problems and device checks used by the filming screen ---- */
+
+/** Where the tracker stands after the reader touches a word: that word counts as said. */
+export function resyncPosition(index: number, total: number): number {
+  if (!Number.isFinite(index) || total <= 0) return 0;
+  return Math.min(total, Math.max(0, Math.floor(index)) + 1);
+}
+
+/** Unfilled "___" placeholders left by the templates. */
+export function countBlanks(...texts: readonly string[]): number {
+  return texts.reduce((n, t) => n + (t.match(/_{3,}/gu)?.length ?? 0), 0);
+}
+
+export const DIALECTS = [
+  { code: 'ar-SA', label: 'السعودية' },
+  { code: 'ar-KW', label: 'الكويت' },
+  { code: 'ar-AE', label: 'الإمارات' },
+  { code: 'ar-EG', label: 'مصر' },
+  { code: 'ar-JO', label: 'الأردن' },
+] as const;
+
+export type DialectCode = (typeof DIALECTS)[number]['code'];
+export const DEFAULT_DIALECT: DialectCode = 'ar-SA';
+
+/** A stored or typed value as a known dialect, or the default one. */
+export function parseDialect(value: unknown): DialectCode {
+  return DIALECTS.find((d) => d.code === value)?.code ?? DEFAULT_DIALECT;
+}
+
+export const dialectLabel = (code: DialectCode) =>
+  DIALECTS.find((d) => d.code === code)?.label ?? '';
+
+export type VoiceIssueKind =
+  'permission' | 'service' | 'network' | 'device' | 'language' | 'silence' | 'ignore' | 'unknown';
+
+export interface VoiceIssue {
+  kind: VoiceIssueKind;
+  title: string;
+  text: string;
+  /** Voice mode cannot go on: the screen falls back to the steady speed. */
+  fatal: boolean;
+}
+
+/** What a speech-recognition error code means for the reader, in plain words. */
+export function describeVoiceError(code: string): VoiceIssue {
+  switch (code) {
+    case 'not-allowed':
+      return {
+        kind: 'permission',
+        title: 'إذن المايك غير مفعّل',
+        text: 'وضع «يتبع الصوت» يحتاج إذن استخدام المايك. بعد تفعيل الإذن يمكن إعادة المحاولة، وفي الأثناء تعمل الشاشة بالسرعة الثابتة.',
+        fatal: true,
+      };
+    case 'service-not-allowed':
+      return {
+        kind: 'service',
+        title: 'خدمة التعرّف على الكلام غير متاحة',
+        text: 'هذا المتصفح لا يسمح بخدمة التعرّف على الكلام. تعمل الميزة عادةً في كروم وسفاري من صفحة التطبيق المفتوحة في المتصفح.',
+        fatal: true,
+      };
+    case 'network':
+      return {
+        kind: 'network',
+        title: 'لا يوجد اتصال بالإنترنت',
+        text: 'وضع «يتبع الصوت» يحتاج إنترنت لأن المتصفح يعالج الصوت عند مزوّده. بقية التطبيق تعمل دون إنترنت.',
+        fatal: true,
+      };
+    case 'audio-capture':
+      return {
+        kind: 'device',
+        title: 'لم يُعثر على مايك يعمل',
+        text: 'يُرجى التأكد من أن المايك موصول وغير مستخدم من تطبيق آخر، ثم إعادة المحاولة.',
+        fatal: true,
+      };
+    case 'language-not-supported':
+      return {
+        kind: 'language',
+        title: 'اللهجة غير مدعومة',
+        text: 'هذا المتصفح لا يدعم التعرّف على هذه اللهجة العربية.',
+        fatal: false,
+      };
+    case 'no-speech':
+      return {
+        kind: 'silence',
+        title: 'لم يُسمع كلام',
+        text: 'لم يُلتقط كلام منذ فترة. يُرجى التقريب من المايك أو رفع الصوت قليلاً.',
+        fatal: false,
+      };
+    case 'aborted':
+      return { kind: 'ignore', title: '', text: '', fatal: false };
+    default:
+      return {
+        kind: 'unknown',
+        title: 'تعذّرت متابعة الصوت',
+        text: 'توقّف التعرّف على الكلام لسبب غير معروف. تستمر الشاشة بالسرعة الثابتة.',
+        fatal: true,
+      };
+  }
+}
+
+export type DeviceKind = 'ios' | 'android' | 'desktop';
+
+export interface DeviceEnv {
+  ua: string;
+  maxTouchPoints?: number;
+  /** navigator.standalone (Safari only). */
+  standalone?: boolean;
+  /** matchMedia('(display-mode: standalone)'). */
+  displayStandalone?: boolean;
+}
+
+export function detectDevice(env: Pick<DeviceEnv, 'ua' | 'maxTouchPoints'>): DeviceKind {
+  const iPadOS = (env.maxTouchPoints ?? 0) > 1 && /Macintosh/.test(env.ua);
+  if (/iPhone|iPad|iPod/.test(env.ua) || iPadOS) return 'ios';
+  if (/Android/.test(env.ua)) return 'android';
+  return 'desktop';
+}
+
+/** An iPhone or iPad running the installed (home-screen) app, where speech recognition is unreliable. */
+export function isIosStandalone(env: DeviceEnv): boolean {
+  return detectDevice(env) === 'ios' && (env.standalone === true || env.displayStandalone === true);
+}

@@ -116,12 +116,25 @@ export function relativeDayLabel(key: string, now: Date = new Date()): string {
   return formatDate.dayMonth(fromDayKey(key));
 }
 
-export function greeting(now: Date = new Date()): { text: string; emoji: string } {
+export type DayPeriod = 'morning' | 'noon' | 'evening' | 'night';
+
+export function greeting(now: Date = new Date()): {
+  text: string;
+  emoji: string;
+  period: DayPeriod;
+} {
   const h = now.getHours();
-  if (h >= 5 && h < 12) return { text: 'صباح الخير', emoji: '☀️' };
-  if (h >= 12 && h < 17) return { text: 'يسعد نهارك', emoji: '🌤️' };
-  if (h >= 17 && h < 22) return { text: 'مساء الخير', emoji: '🌙' };
-  return { text: 'ليل المبدعين', emoji: '✨' };
+  if (h >= 5 && h < 12) return { text: 'صباح الخير', emoji: '☀️', period: 'morning' };
+  if (h >= 12 && h < 17) return { text: 'يسعد نهارك', emoji: '🌤️', period: 'noon' };
+  if (h >= 17 && h < 22) return { text: 'مساء الخير', emoji: '🌙', period: 'evening' };
+  return { text: 'ليل المبدعين', emoji: '✨', period: 'night' };
+}
+
+/** "الخميس 20 نوفمبر · 9:30 م": a picked day (and optional time) spelled out in Arabic. */
+export function formatScheduleLabel(dayKey: string, time?: string | null): string {
+  const date = fromDayKey(dayKey);
+  const day = `${formatDate.weekdayLong(date)} ${formatDate.dayMonth(date)}`;
+  return time ? `${day} · ${formatTimeKey(time)}` : day;
 }
 
 /** Weekday headers in display order for the chosen first day of the week. */

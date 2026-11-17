@@ -12,6 +12,7 @@ import { FORMAT_META, PLATFORM_META, SPARK_LABELS, SPARK_PROMPTS } from '@/lib/c
 import { cn } from '@/lib/cn';
 import { formatDate, fromDayKey } from '@/lib/dates';
 import { haptics } from '@/lib/haptics';
+import { HIT_ICON_POSITIONED } from '@/lib/touch';
 import { createIdea } from '@/lib/repo';
 import { FORMATS, type Format, type PlatformId } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
@@ -97,7 +98,7 @@ export function QuickCapture() {
       if (openAfter) navigate(`/idea/${idea.id}`);
       else
         toast({
-          title: 'انحفظت الفكرة ✨',
+          title: 'انحفظت الفكرة',
           description: clean.length > 42 ? `${clean.slice(0, 42)}…` : clean,
           tone: 'success',
           action: { label: 'فتح', run: () => navigate(`/idea/${idea.id}`) },
@@ -173,10 +174,13 @@ export function QuickCapture() {
           <button
             type="button"
             onClick={spin}
-            className="absolute bottom-3 start-3 inline-flex h-8 items-center gap-1.5 rounded-full bg-accent-soft px-3 text-xs font-semibold text-accent-ink transition-transform active:scale-95"
+            className={cn(
+              'absolute bottom-3 start-3 inline-flex h-8 items-center gap-1.5 rounded-full bg-accent-soft px-3 text-xs font-semibold text-accent-ink transition-transform active:scale-95',
+              HIT_ICON_POSITIONED,
+            )}
           >
             <Sparkles size={14} />
-            عطني شرارة
+            شرارة عشوائية
           </button>
         </div>
 

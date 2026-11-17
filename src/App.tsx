@@ -8,10 +8,10 @@ import { UpdatePrompt } from '@/components/layout/UpdatePrompt';
 import { LogoMark } from '@/components/ui/Logo';
 import { TooltipLayer } from '@/components/ui/TooltipLayer';
 import { StartFreshSheet } from '@/features/demo/StartFreshSheet';
+import { HelpSheet } from '@/features/help/HelpSheet';
 import { InstallSheet } from '@/features/install/InstallSheet';
 import { useSettingsRecord } from '@/hooks/data';
 import { useAppearance } from '@/hooks/useAppearance';
-import { requestPersistentStorage } from '@/lib/db';
 import { setHapticsEnabled } from '@/lib/haptics';
 import { trackError } from '@/lib/tracker';
 
@@ -40,7 +40,6 @@ export function App() {
   useEffect(() => setHapticsEnabled(settings?.haptics !== false), [settings?.haptics]);
 
   useEffect(() => {
-    void requestPersistentStorage();
     // The backup module (and its validator) loads after first paint.
     import('@/lib/backup')
       .then((m) => m.dailySnapshot())
@@ -52,7 +51,7 @@ export function App() {
   else if (!settings?.onboarded)
     content = (
       <Suspense fallback={<Splash />}>
-        <Onboarding />
+        <Onboarding initial={settings} />
       </Suspense>
     );
   else
@@ -94,6 +93,7 @@ export function App() {
       <UpdatePrompt />
       <TooltipLayer />
       <InstallSheet />
+      <HelpSheet />
       <StartFreshSheet />
     </>
   );

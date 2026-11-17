@@ -11,7 +11,9 @@ import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import { Segmented } from '@/components/ui/Segmented';
 import { useIdeas, usePillars, useSettings } from '@/hooks/data';
 import { PLATFORM_META, STAGE_META } from '@/lib/catalog';
+import { cn } from '@/lib/cn';
 import { plural, WORDS } from '@/lib/format';
+import { HIT_ICON } from '@/lib/touch';
 import { normalizeArabic } from '@/lib/text';
 import { STAGES, type Idea, type PlatformId, type Stage } from '@/lib/types';
 import { useUI } from '@/store/ui';
@@ -102,14 +104,17 @@ export default function IdeasPage() {
                 },
               ]}
             />
-            <Button
-              variant="primary"
-              className="hidden md:inline-flex"
-              icon={<Plus size={18} />}
-              onClick={() => openCapture()}
-            >
-              فكرة
-            </Button>
+            {/* The empty state carries the one primary action, so the header button waits for ideas. */}
+            {(liveCount > 0 || archived) && (
+              <Button
+                variant="primary"
+                className="hidden md:inline-flex"
+                icon={<Plus size={18} />}
+                onClick={() => openCapture()}
+              >
+                فكرة
+              </Button>
+            )}
           </>
         }
       />
@@ -124,14 +129,14 @@ export default function IdeasPage() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="بحث في الأفكار والسكريبتات"
               aria-label="بحث في الأفكار"
-              className="h-full min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-ink-3"
+              className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-ink-3"
             />
             {query && (
               <button
                 type="button"
                 aria-label="مسح البحث"
                 onClick={() => setQuery('')}
-                className="text-ink-3 hover:text-ink"
+                className={cn('grid size-8 place-items-center text-ink-3 hover:text-ink', HIT_ICON)}
               >
                 <X size={16} />
               </button>

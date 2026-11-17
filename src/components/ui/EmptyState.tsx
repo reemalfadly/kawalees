@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { GlyphTile } from './GlyphTile';
 
+/* One template for every empty place in the app: a 48px icon, a title, one line
+   of explanation and an optional action. `compact` only trims the vertical space. */
 export function EmptyState({
   icon,
   title,
@@ -31,20 +33,18 @@ export function EmptyState({
         className,
       )}
     >
-      <div className="relative mb-5">
+      <div className="relative mb-4">
         <div
           className="absolute inset-0 -z-10 scale-150 rounded-full bg-accent-soft blur-2xl"
           aria-hidden
         />
-        <GlyphTile
-          icon={icon}
-          size={compact ? 'lg' : 'xl'}
-          className="animate-[float_5s_ease-in-out_infinite]"
-        />
+        <GlyphTile icon={icon} size="empty" />
       </div>
       <Heading className="text-lg font-semibold text-ink">{title}</Heading>
-      {description && <p className="mt-1.5 max-w-sm text-sm leading-6 text-ink-3">{description}</p>}
-      {action && <div className="mt-5">{action}</div>}
+      {description && <p className="mt-1.5 max-w-sm text-sm leading-6 text-ink-2">{description}</p>}
+      {action && (
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{action}</div>
+      )}
     </div>
   );
 }

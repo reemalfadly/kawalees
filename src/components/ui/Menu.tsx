@@ -184,7 +184,7 @@ export function Menu({
                     item.onSelect();
                   }}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-sm font-medium outline-none transition-colors',
+                    'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-sm font-medium outline-none transition-colors',
                     'focus-visible:bg-surface-2 disabled:opacity-40',
                     item.danger ? 'text-bad hover:bg-bad/10' : 'text-ink hover:bg-surface-2',
                   )}
