@@ -25,6 +25,7 @@ import { ProgressBar, ProgressRing } from '@/components/ui/ProgressRing';
 import { STAGE_ICONS } from '@/components/ui/StageBadge';
 import { DemoBanner } from '@/features/demo/DemoBanner';
 import { InstallBanner } from '@/features/install/InstallBanner';
+import { isCredibleSchedule } from '@/features/gate/stageStatus';
 import { IdeaRow } from '@/features/ideas/IdeaRow';
 import { Glyph, PeriodGlyph } from '@/features/stats/glyphs';
 import { useLiveIdeas, useSettings } from '@/hooks/data';
@@ -80,16 +81,26 @@ export default function HomePage() {
     return weekKeys(now, settings.weekStartsOn).map((key) => ({
       key,
       published: ideas.filter((i) => publishedDayKey(i) === key).length,
-      scheduled: ideas.filter((i) => i.scheduledFor === key && i.stage !== 'published').length,
+      scheduled: ideas.filter(
+        (i) => i.scheduledFor === key && i.stage !== 'published' && isCredibleSchedule(i),
+      ).length,
     }));
     // `now` changes every render; the week only needs recomputing when data or settings change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ideas, settings.weekStartsOn, today]);
 
-  const todays = ideas.filter((i) => i.scheduledFor === today && i.stage !== 'published');
+  const todays = ideas.filter(
+    (i) => i.scheduledFor === today && i.stage !== 'published' && isCredibleSchedule(i),
+  );
   const next = upNext(ideas, 5).filter((i) => !todays.includes(i));
   const upcoming = ideas
-    .filter((i) => i.scheduledFor && i.scheduledFor > today && i.stage !== 'published')
+    .filter(
+      (i) =>
+        i.scheduledFor &&
+        i.scheduledFor > today &&
+        i.stage !== 'published' &&
+        isCredibleSchedule(i),
+    )
     .sort((a, b) => (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? ''))
     .slice(0, 4);
   const counts = countByStage(ideas);

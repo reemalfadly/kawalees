@@ -20,7 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Page } from '@/components/layout/Page';
 import { RouteFallback } from '@/components/layout/AppShell';
@@ -32,6 +32,16 @@ import { Input } from '@/components/ui/Field';
 import { Menu } from '@/components/ui/Menu';
 import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import { STAGE_ICONS } from '@/components/ui/StageBadge';
+import { ApprovalLog } from '@/features/gate/ApprovalLog';
+import { focusField } from '@/features/gate/focusField';
+import { useGate } from '@/features/gate/gateStore';
+import {
+  isCredibleSchedule,
+  joinPhrases,
+  scheduleBlockers,
+  stageStatus,
+} from '@/features/gate/stageStatus';
+import { useScheduleGuard } from '@/features/gate/useScheduleGuard';
 import { useIdeaActions } from '@/features/ideas/useIdeaActions';
 import { useIdea, usePillars, useSettings } from '@/hooks/data';
 import {
@@ -45,12 +55,12 @@ import {
 import { cn } from '@/lib/cn';
 import { formatDate, formatScheduleLabel, relativeDayLabel } from '@/lib/dates';
 import { plural, WORDS } from '@/lib/format';
-import { touchActivity, updateIdea } from '@/lib/repo';
+import { touchActivity, updateIdea, type IdeaEdit } from '@/lib/repo';
 import { countWords, FORMAT_TARGET_SECONDS, formatDuration, speakingSeconds } from '@/lib/script';
-import { nextStage, prevStage } from '@/lib/stats';
+import { prevStage } from '@/lib/stats';
 import { HIT_ICON, HIT_LINK } from '@/lib/touch';
 import { trackError } from '@/lib/tracker';
-import { FORMATS, STAGES, type Idea, type PlatformId } from '@/lib/types';
+import { FORMATS, STAGES, type Idea, type PlatformId, type Stage } from '@/lib/types';
 import { toast } from '@/store/ui';
 
 export default function IdeaPage() {
@@ -89,6 +99,7 @@ function Editor({ idea }: { idea: Idea }) {
   const settings = useSettings();
   const pillars = usePillars();
   const { moveTo, remove, duplicate, toggleArchive } = useIdeaActions();
+  const { trySchedule } = useScheduleGuard();
 
   // Text is edited locally and saved in the background; everything else writes straight through.
   const [draft, setDraft] = useState<Record<TextField, string>>({
@@ -153,7 +164,28 @@ function Editor({ idea }: { idea: Idea }) {
     };
   }, [flush]);
 
-  const patch = (p: Partial<Idea>) => void updateIdea(idea.id, p).catch((e) => void trackError(e));
+  const patch = (p: IdeaEdit) => void updateIdea(idea.id, p).catch((e) => void trackError(e));
+
+  // The day goes through the schedule gate; a refusal says what is missing and changes nothing.
+  // Typed text is saved first so the gate judges what is on screen.
+  const reschedule = (day: string | null, time: string | null) =>
+    void flush()
+      .then(() => trySchedule(idea, day, time))
+      .catch((e) => void trackError(e));
+
+  // The checkpoint always runs on saved text, so flush before opening it.
+  const move = (to: Stage) => void flush().then(() => moveTo(idea, to));
+
+  // «انتقال للحقل» from the checkpoint or a refused schedule lands here.
+  const focusReq = useGate((g) => g.focus);
+  useEffect(() => {
+    if (!focusReq || focusReq.ideaId !== idea.id) return;
+    const t = window.setTimeout(() => {
+      focusField(focusReq.field);
+      useGate.getState().clearFocus();
+    }, 180);
+    return () => window.clearTimeout(t);
+  }, [focusReq, idea.id]);
 
   const togglePlatform = (p: PlatformId) =>
     patch({
@@ -166,8 +198,23 @@ function Editor({ idea }: { idea: Idea }) {
   const seconds = speakingSeconds(words, settings.wordsPerMinute);
   const target = FORMAT_TARGET_SECONDS[idea.format];
   const overTarget = target != null && seconds > target;
-  const next = nextStage(idea.stage);
   const prev = prevStage(idea.stage);
+
+  // Everything honest below is derived from what is actually typed, not from a canned phrase.
+  const current = useMemo<Idea>(
+    () => ({
+      ...idea,
+      title: draft.title,
+      hook: draft.hook,
+      body: draft.body,
+      cta: draft.cta,
+    }),
+    [idea, draft],
+  );
+  const status = useMemo(() => stageStatus(current), [current]);
+  const next = status.next;
+  const blockers = useMemo(() => scheduleBlockers(current), [current]);
+  const planned = isCredibleSchedule(idea);
 
   const insertTemplate = (field: 'hook' | 'cta', text: string) => {
     const current = draftRef.current[field].trim();
@@ -245,6 +292,7 @@ function Editor({ idea }: { idea: Idea }) {
       <textarea
         value={draft.title}
         onChange={(e) => edit('title', e.target.value.replace(/\n/g, ' '))}
+        id="field-title"
         aria-label="عنوان الفكرة"
         placeholder="عنوان الفكرة"
         rows={1}
@@ -284,7 +332,7 @@ function Editor({ idea }: { idea: Idea }) {
               <li key={s} className="flex min-w-0 flex-1 items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => void moveTo(idea, s)}
+                  onClick={() => move(s)}
                   aria-current={current ? 'step' : undefined}
                   className={cn(
                     'relative flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-2xl px-0.5 py-2.5 transition-colors sm:min-w-[4.25rem] sm:px-1',
@@ -329,30 +377,47 @@ function Editor({ idea }: { idea: Idea }) {
           })}
         </ol>
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-          <p className="me-auto text-sm text-ink-2">{STAGE_META[idea.stage].hint}</p>
+          <p
+            className={cn('me-auto text-sm', status.ready ? 'text-good' : 'text-ink-2')}
+            data-testid="stage-status"
+            aria-live="polite"
+          >
+            {status.headline}
+          </p>
           {prev && (
-            <Button variant="ghost" size="sm" onClick={() => void moveTo(idea, prev)}>
+            <Button variant="ghost" size="sm" onClick={() => move(prev)}>
               رجوع لـ«{STAGE_META[prev].label}»
             </Button>
           )}
           {next && (
-            <Button
-              variant="primary"
-              size="sm"
-              iconEnd={<ArrowLeft size={16} />}
-              onClick={() => void moveTo(idea, next)}
-            >
-              {next === 'published' ? (
-                <span className="inline-flex items-center gap-1.5">
-                  تم النشر <Rocket size={16} aria-hidden />
-                </span>
-              ) : (
-                `نقل لـ«${STAGE_META[next].label}»`
-              )}
-            </Button>
+            <>
+              <span
+                className="num inline-flex h-7 items-center rounded-full bg-surface-3 px-2.5 text-xs font-semibold text-ink-2"
+                data-testid="gate-progress-chip"
+                role="img"
+                aria-label={`استوفت الفكرة ${status.met} من ${status.total} شروط للانتقال`}
+              >
+                {status.met}/{status.total}
+              </span>
+              <Button
+                variant="primary"
+                size="sm"
+                iconEnd={<ArrowLeft size={16} />}
+                onClick={() => move(next)}
+              >
+                {next === 'published' ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    تم النشر <Rocket size={16} aria-hidden />
+                  </span>
+                ) : (
+                  `نقل لـ«${STAGE_META[next].label}»`
+                )}
+              </Button>
+            </>
           )}
         </div>
       </Card>
+      <ApprovalLog idea={idea} />
 
       <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         {/* Script */}
@@ -436,10 +501,7 @@ function Editor({ idea }: { idea: Idea }) {
                 aria-label="تاريخ النشر"
                 value={idea.scheduledFor ?? ''}
                 onChange={(e) =>
-                  patch({
-                    scheduledFor: e.target.value || null,
-                    scheduledTime: e.target.value ? idea.scheduledTime : null,
-                  })
+                  reschedule(e.target.value || null, e.target.value ? idea.scheduledTime : null)
                 }
                 className="h-11 flex-1"
               />
@@ -448,7 +510,7 @@ function Editor({ idea }: { idea: Idea }) {
                 aria-label="وقت النشر"
                 value={idea.scheduledTime ?? ''}
                 disabled={!idea.scheduledFor}
-                onChange={(e) => patch({ scheduledTime: e.target.value || null })}
+                onChange={(e) => reschedule(idea.scheduledFor, e.target.value || null)}
                 className="h-11 w-32"
               />
             </div>
@@ -463,7 +525,7 @@ function Editor({ idea }: { idea: Idea }) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => patch({ scheduledFor: null, scheduledTime: null })}
+                  onClick={() => reschedule(null, null)}
                   className={cn(
                     'inline-flex shrink-0 items-center gap-1 text-xs text-ink-3 hover:text-bad',
                     HIT_LINK,
@@ -475,11 +537,29 @@ function Editor({ idea }: { idea: Idea }) {
             ) : (
               <p className="mt-2.5 text-xs text-ink-3">الجدولة تحط الفكرة في التقويم</p>
             )}
+            {blockers.length > 0 && (
+              <div
+                className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-xs text-ink-2"
+                data-testid="schedule-blockers"
+              >
+                <span className="min-w-0 flex-1">
+                  {idea.scheduledFor && !planned
+                    ? 'الموعد محفوظ لكنه لا يظهر في التقويم حتى يكتمل: '
+                    : 'الجدولة تحتاج أولاً: '}
+                  {joinPhrases(current, blockers, 3)}
+                </span>
+                {blockers[0]?.field && (
+                  <Button variant="tonal" size="sm" onClick={() => focusField(blockers[0]!.field!)}>
+                    انتقال للحقل
+                  </Button>
+                )}
+              </div>
+            )}
           </Card>
 
           <Card>
             <h2 className="mb-3 font-display text-base font-semibold text-ink">المنصات</h2>
-            <div className="flex flex-wrap gap-2">
+            <div id="field-platforms" className="flex flex-wrap gap-2">
               {settings.platforms.map((p) => (
                 <Chip
                   key={p}
@@ -493,7 +573,7 @@ function Editor({ idea }: { idea: Idea }) {
             </div>
 
             <h2 className="mt-6 mb-3 font-display text-base font-semibold text-ink">النوع</h2>
-            <div className="flex flex-wrap gap-2">
+            <div id="field-format" className="flex flex-wrap gap-2">
               {FORMATS.map((f) => (
                 <Chip key={f} selected={idea.format === f} onClick={() => patch({ format: f })}>
                   <span aria-hidden>{FORMAT_META[f].emoji}</span>

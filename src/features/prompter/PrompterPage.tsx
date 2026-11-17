@@ -1,17 +1,17 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
-import { FlipHorizontal2, Mic, Minus, Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { animate, AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useIdea, useSettings } from '@/hooks/data';
 import { cn } from '@/lib/cn';
+import { haptics } from '@/lib/haptics';
 import { formatDuration } from '@/lib/script';
 import {
   countBlanks,
   DEFAULT_DIALECT,
   describeVoiceError,
   dialectLabel,
-  DIALECTS,
   followSpeech,
   isIosStandalone,
   isSpace,
@@ -22,27 +22,44 @@ import {
   type DialectCode,
   type VoiceIssue,
 } from '@/lib/voiceFollow';
+import { PrompterControls } from './PrompterControls';
 import { PrompterDialog, type Dialog } from './PrompterDialog';
+import { Countdown, FinishCard, SectionChips } from './PrompterOverlays';
+import {
+  DEFAULT_LEADING_LEVEL,
+  LEADING_KEY,
+  LEADING_LEVELS,
+  readLeadingLevel,
+  readSizeLevel,
+  SIZE_KEY,
+  SIZE_LEVELS,
+} from './readingPrefs';
+import { ReadingScroller } from './scrollEngine';
 
-/* Teleprompter: the script scrolls past a reading line while filming, either at a
-   steady speed or following the reader's voice (speech recognition). Keeps the
-   screen awake, mirrors for prompter glass, and remembers the setup. */
+/* Teleprompter: the script moves past a reading band while filming, either at a steady speed
+   or following the reader's voice (speech recognition). The scrolling itself lives in
+   scrollEngine.ts (one frame loop, fractional offset, eased); this file is the screen around
+   it. Keeps the screen awake, mirrors for prompter glass, and remembers the setup. */
 
 const PREFS_KEY = 'kawalees:prompter';
 const LANG_KEY = 'kawalees:prompter-lang';
 const PRIVACY_KEY = 'kawalees:prompter-voice-privacy';
 
 interface Prefs {
-  size: number;
   speed: number;
   mirror: boolean;
   voice: boolean;
 }
-const DEFAULTS: Prefs = { size: 40, speed: 4, mirror: false, voice: false };
+const DEFAULTS: Prefs = { speed: 4, mirror: false, voice: false };
 
 function loadPrefs(): Prefs {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') };
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<Prefs>;
+    return {
+      speed: Math.min(10, Math.max(1, Number(saved.speed) || DEFAULTS.speed)),
+      mirror: saved.mirror === true,
+      voice: saved.voice === true,
+    };
   } catch {
     return DEFAULTS;
   }
@@ -66,6 +83,21 @@ function writeStore(key: string, value: string) {
 
 /** Speed steps 1–10 → pixels per second. */
 const pxPerSecond = (speed: number) => 14 + speed * 16;
+
+/** Where the reading band sits, as a share of the screen height (from the top). */
+const READ_AT = 0.36;
+/** The controls fade this long after the last touch while playing. */
+const HIDE_AFTER_MS = 3000;
+/** Each countdown number stays this long. */
+const COUNT_STEP_MS = 750;
+/** Easing used across the screen: quick start, long soft landing. */
+const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+
+/* Text fades into the top and the bottom of the screen with a mask, not with painted
+   gradients: the line being read is fully lit, what was read dims away upwards, what comes
+   next is a little softer, and both edges dissolve. */
+const READING_MASK =
+  'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.1) 8%, rgba(0,0,0,.32) 19%, rgba(0,0,0,.8) 30%, #000 34.5%, #000 40%, rgba(0,0,0,.82) 49%, rgba(0,0,0,.56) 64%, rgba(0,0,0,.3) 82%, rgba(0,0,0,.08) 95%, transparent 100%)';
 
 interface WakeLock {
   release: () => Promise<void>;
@@ -119,10 +151,25 @@ const UNSUPPORTED: VoiceIssue = {
   fatal: true,
 };
 
-/** Scroll position that puts a word on the reading line. */
-function wordTarget(el: HTMLElement, word: HTMLElement): number {
-  const top = word.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
-  return top + word.offsetHeight / 2 - el.clientHeight * 0.36;
+const SECTION_DEFS = [
+  { key: 'hook', label: 'الخطّاف' },
+  { key: 'body', label: 'المحتوى' },
+  { key: 'cta', label: 'الدعوة' },
+] as const;
+
+/** Where a word sits inside the moving content (layout pixels, unaffected by the mirror). */
+function wordBox(content: HTMLElement | null, index: number) {
+  const w = content?.querySelector<HTMLElement>(`[data-w="${index}"]`);
+  return w ? { x: w.offsetLeft, y: w.offsetTop, w: w.offsetWidth, h: w.offsetHeight } : null;
+}
+
+interface Layout {
+  min: number;
+  max: number;
+  readY: number;
+  vh: number;
+  tops: number[];
+  firstY: number[];
 }
 
 export default function PrompterPage() {
@@ -130,20 +177,30 @@ export default function PrompterPage() {
   const idea = useIdea(id);
   const settings = useSettings();
   const navigate = useNavigate();
+  const reduce = useReducedMotion();
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const [sizeLevel, setSizeLevel] = useState(() => readSizeLevel(readStore, PREFS_KEY));
+  const [leadingLevel, setLeadingLevel] = useState(() => readLeadingLevel(readStore));
   const [lang, setLang] = useState<DialectCode>(() => parseDialect(readStore(LANG_KEY)));
   const [playing, setPlaying] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [remainingPx, setRemainingPx] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const [playedSec, setPlayedSec] = useState(0);
+  const [remainingSec, setRemainingSec] = useState(0);
+  const [activeSection, setActiveSection] = useState(0);
+  const [revealed, setRevealed] = useState(1);
+  const [layoutV, setLayoutV] = useState(0);
   const [chrome, setChrome] = useState(true);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const exact = useRef(0);
+  const viewport = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  const ember = useRef<HTMLDivElement>(null);
   const wake = useRef<WakeLock | null>(null);
   const hideTimer = useRef<number | undefined>(undefined);
   const noticeTimer = useRef<number | undefined>(undefined);
+  const finishTimer = useRef<number | undefined>(undefined);
   // What the reader has already agreed to on this screen.
   const blanksOk = useRef(false);
   const iosOk = useRef(false);
@@ -151,23 +208,39 @@ export default function PrompterPage() {
   // Voice-follow: how many script words have been said so far.
   const [said, setSaid] = useState(0);
   const saidRef = useRef(0);
+  // Frame-level bookkeeping kept out of React state (it changes every frame).
+  const lay = useRef<Layout>({ min: 0, max: 0, readY: 0, vh: 0, tops: [], firstY: [] });
+  const speedRef = useRef(prefs.speed);
+  const activeRef = useRef(0);
+  const revealedRef = useRef(1);
+  const remainingRef = useRef(-1);
+  const finishedRef = useRef(false);
+  const playStart = useRef<number | null>(null);
+  const playedMs = useRef(0);
+  const emberShown = useRef(false);
+  const drag = useRef<{ id: number; y0: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+
+  const [engine] = useState(() => new ReadingScroller(Math.min(3, window.devicePixelRatio || 1)));
+  useEffect(() => () => engine.destroy(), [engine]);
 
   // The script as sections of tokens; every word gets a running index for voice-follow.
   const script = useMemo(() => {
     const words: string[] = [];
     const sections = idea
-      ? [
-          { label: 'الخطّاف', text: idea.hook },
-          { label: 'المحتوى', text: idea.body },
-          { label: 'الدعوة للتفاعل', text: idea.cta },
-        ]
+      ? SECTION_DEFS.map((d) => ({ ...d, text: idea[d.key] }))
           .filter((s) => s.text.trim())
-          .map((s) => ({
-            label: s.label,
-            tokens: tokenize(s.text).map((t) =>
-              isSpace(t) ? { t, i: -1 } : { t, i: words.push(normalizeWord(t)) - 1 },
-            ),
-          }))
+          .map((s) => {
+            const first = words.length;
+            return {
+              key: s.key,
+              label: s.label,
+              first,
+              tokens: tokenize(s.text).map((t) =>
+                isSpace(t) ? { t, i: -1 } : { t, i: words.push(normalizeWord(t)) - 1 },
+              ),
+            };
+          })
       : [];
     return { sections, words };
   }, [idea]);
@@ -186,7 +259,14 @@ export default function PrompterPage() {
     noticeTimer.current = window.setTimeout(() => setNotice(null), 5000);
   }, []);
 
-  useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(noticeTimer.current);
+      window.clearTimeout(finishTimer.current);
+      window.clearTimeout(hideTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     try {
@@ -195,6 +275,8 @@ export default function PrompterPage() {
       /* ignore */
     }
   }, [prefs]);
+  useEffect(() => writeStore(SIZE_KEY, String(sizeLevel)), [sizeLevel]);
+  useEffect(() => writeStore(LEADING_KEY, String(leadingLevel)), [leadingLevel]);
 
   const exit = useCallback(
     () => navigate(id ? `/idea/${id}` : '/ideas', { replace: true }),
@@ -202,29 +284,120 @@ export default function PrompterPage() {
   );
 
   const listening = playing && prefs.voice && dialog === null;
+  const ready = idea != null;
 
-  // Steady scroll loop.
+  // How long the reader actually spent reading (shown on the closing card).
+  const bankPlay = useCallback(() => {
+    if (playStart.current !== null) playedMs.current += performance.now() - playStart.current;
+    playStart.current = null;
+  }, []);
   useEffect(() => {
-    if (!playing || prefs.voice) return;
-    const el = scroller.current;
-    if (!el) return;
-    exact.current = el.scrollTop;
-    let last = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      exact.current += pxPerSecond(prefs.speed) * dt;
-      el.scrollTop = exact.current;
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
-        setPlaying(false);
-        return;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [playing, prefs.speed, prefs.voice]);
+    if (playing) playStart.current = performance.now();
+    else bankPlay();
+  }, [playing, bankPlay]);
+
+  const finish = useCallback(() => {
+    bankPlay();
+    setPlayedSec(Math.round(playedMs.current / 1000));
+    setPlaying(false);
+    setCountdown(null);
+    finishedRef.current = true;
+    setFinished(true);
+    haptics.success();
+  }, [bankPlay]);
+
+  useEffect(() => {
+    finishedRef.current = finished;
+  }, [finished]);
+
+  /** Everything that follows the offset: progress, time left, current section, label reveal. */
+  const syncFrame = useCallback((pos: number) => {
+    const L = lay.current;
+    if (bar.current)
+      bar.current.style.transform = `scaleX(${L.max > L.min ? (pos - L.min) / (L.max - L.min) : 0})`;
+    const rem = Math.round(Math.max(0, L.max - pos) / pxPerSecond(speedRef.current));
+    if (rem !== remainingRef.current) {
+      remainingRef.current = rem;
+      setRemainingSec(rem);
+    }
+    let active = 0;
+    L.firstY.forEach((y, i) => {
+      if (y <= pos + L.readY + 8) active = i;
+    });
+    if (active !== activeRef.current) {
+      activeRef.current = active;
+      setActiveSection(active);
+    }
+    let seen = 1;
+    L.tops.forEach((y, i) => {
+      if (y - pos < L.vh * 0.92) seen = i + 1;
+    });
+    if (seen > revealedRef.current) {
+      revealedRef.current = seen;
+      setRevealed(seen);
+    }
+    if (finishedRef.current && pos < L.max - 60) {
+      finishedRef.current = false;
+      setFinished(false);
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    engine.bind({
+      apply: (pos) => {
+        const el = content.current;
+        if (el) el.style.transform = `translate3d(0, ${-pos}px, 0)`;
+      },
+      onFrame: syncFrame,
+      onEnd: finish,
+    });
+  }, [engine, syncFrame, finish]);
+
+  // Measure the content: how far it can go, where each section starts. Redone when anything resizes.
+  const measure = useCallback(() => {
+    const vp = viewport.current;
+    const c = content.current;
+    if (!vp || !c) return;
+    const L = lay.current;
+    L.vh = vp.clientHeight;
+    L.readY = L.vh * READ_AT;
+    const contentMax = Math.max(0, c.offsetHeight - L.vh);
+    L.tops = [...c.querySelectorAll<HTMLElement>('[data-section]')].map((el) => el.offsetTop);
+    L.firstY = script.sections.map((s) => {
+      const box = wordBox(c, s.first);
+      return box ? box.y + box.h / 2 : (L.tops[0] ?? 0);
+    });
+    // The script starts with its first line on the reading band (above it sits the section name).
+    const first = wordBox(c, 0);
+    L.min = first ? Math.max(0, first.y + first.h / 2 - L.readY) : 0;
+    // ...and ends with the last line on the band: that is when the whole text has been read.
+    const lastBox = script.words.length > 0 ? wordBox(c, script.words.length - 1) : null;
+    L.max = lastBox
+      ? Math.min(contentMax, Math.max(L.min, lastBox.y + lastBox.h / 2 - L.readY))
+      : contentMax;
+    engine.setBounds(L.min, L.max);
+    syncFrame(engine.pos);
+    setLayoutV((v) => v + 1);
+  }, [engine, script, syncFrame]);
+
+  useLayoutEffect(() => {
+    if (!ready) return;
+    measure();
+    const vp = viewport.current;
+    const c = content.current;
+    if (!vp || !c || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(vp);
+    ro.observe(c);
+    return () => ro.disconnect();
+  }, [ready, measure]);
+
+  // Steady scroll: the engine eases up to the speed, and back down to a stop.
+  useEffect(() => {
+    speedRef.current = prefs.speed;
+    engine.setSpeed(playing && !prefs.voice ? pxPerSecond(prefs.speed) : 0);
+    syncFrame(engine.pos);
+  }, [engine, playing, prefs.speed, prefs.voice, syncFrame]);
 
   // Voice-follow: listen, and move the reading position to the words just said.
   useEffect(() => {
@@ -255,7 +428,12 @@ export default function PrompterPage() {
         const next = followSpeech(script.words, saidRef.current, heard.trim().split(/\s+/u));
         if (next === saidRef.current) return;
         setSaidAt(next);
-        if (next >= script.words.length) setPlaying(false);
+        if (next >= script.words.length) {
+          // The last word was said: let the screen settle on it, then close.
+          setPlaying(false);
+          window.clearTimeout(finishTimer.current);
+          finishTimer.current = window.setTimeout(finish, 650);
+        }
       };
       r.onerror = (e) => {
         const issue = describeVoiceError(e.error);
@@ -313,25 +491,53 @@ export default function PrompterPage() {
         /* already stopped */
       }
     };
-  }, [listening, script, lang, setSaidAt, notify]);
+  }, [listening, script, lang, setSaidAt, notify, finish]);
 
-  // Voice-follow scrolling: glide the last word said onto the reading line.
+  // Voice mode: the word about to be read sits on the reading band. While listening the engine
+  // keeps chasing it with a soft spring; otherwise (a touched word, a section jump) it glides once.
   useEffect(() => {
-    if (!listening) return;
-    const el = scroller.current;
-    if (!el) return;
-    let raf = 0;
-    const tick = () => {
-      const word = el.querySelector<HTMLElement>(`[data-w="${Math.max(0, saidRef.current - 1)}"]`);
-      if (word) {
-        const d = wordTarget(el, word) - el.scrollTop;
-        if (Math.abs(d) > 0.5) el.scrollTop += d * 0.08;
-      }
-      raf = requestAnimationFrame(tick);
+    if (!ready) return;
+    if (!prefs.voice) {
+      engine.follow(null);
+      return;
+    }
+    const n = script.words.length;
+    const box = n > 0 ? wordBox(content.current, Math.min(said, n - 1)) : null;
+    if (!box) return;
+    const y = box.y + box.h / 2 - lay.current.readY;
+    if (listening) engine.follow(y);
+    else engine.glideTo(y);
+  }, [ready, engine, prefs.voice, listening, said, script, layoutV, sizeLevel, leadingLevel]);
+
+  // The ember behind the word being read moves with a light spring (transform and opacity only).
+  useEffect(() => {
+    const el = ember.current;
+    if (!el || !ready) return;
+    const n = script.words.length;
+    const box = prefs.voice && said < n ? wordBox(content.current, said) : null;
+    if (!box) {
+      emberShown.current = false;
+      animate(el, { opacity: 0 }, { duration: reduce ? 0 : 0.25 });
+      return;
+    }
+    const pad = (SIZE_LEVELS[sizeLevel] ?? 40) * 0.3;
+    const target = {
+      x: box.x - pad,
+      y: box.y - pad * 0.7,
+      scaleX: (box.w + pad * 2) / 100,
+      scaleY: (box.h + pad * 1.4) / 100,
+      opacity: 1,
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [listening]);
+    const first = !emberShown.current;
+    emberShown.current = true;
+    animate(
+      el,
+      target,
+      first || reduce
+        ? { duration: 0 }
+        : { type: 'spring', stiffness: 230, damping: 26, mass: 0.9 },
+    );
+  }, [ready, prefs.voice, said, layoutV, sizeLevel, leadingLevel, script, reduce]);
 
   // Keep the screen on while this screen is open. The system lets go of the lock whenever
   // the page is hidden, so ask again as soon as it is visible.
@@ -377,20 +583,33 @@ export default function PrompterPage() {
   const poke = useCallback(() => {
     setChrome(true);
     window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setChrome(false), 2600);
+    hideTimer.current = window.setTimeout(() => setChrome(false), HIDE_AFTER_MS);
   }, []);
 
   useEffect(() => {
     if (countdown === null) return;
+    haptics.tap();
     const t = window.setTimeout(() => {
       if (countdown <= 1) {
         setCountdown(null);
         setPlaying(true);
         poke();
       } else setCountdown(countdown - 1);
-    }, 700);
+    }, COUNT_STEP_MS);
     return () => window.clearTimeout(t);
   }, [countdown, poke]);
+
+  const restart = useCallback(() => {
+    window.clearTimeout(finishTimer.current);
+    setPlaying(false);
+    setCountdown(null);
+    setFinished(false);
+    finishedRef.current = false;
+    playedMs.current = 0;
+    setSaidAt(0);
+    engine.glideTo(lay.current.min);
+    setChrome(true);
+  }, [engine, setSaidAt]);
 
   /**
    * Start filming ('start') or switch voice mode on ('enable'), after the checks that come
@@ -428,6 +647,10 @@ export default function PrompterPage() {
   );
 
   const toggle = useCallback(() => {
+    if (finished) {
+      restart();
+      return;
+    }
     if (countdown !== null) {
       setCountdown(null);
       return;
@@ -436,7 +659,7 @@ export default function PrompterPage() {
       setPlaying(false);
       setChrome(true);
     } else act('start');
-  }, [countdown, playing, act]);
+  }, [finished, restart, countdown, playing, act]);
 
   const toggleVoice = () => {
     if (prefs.voice) {
@@ -450,6 +673,10 @@ export default function PrompterPage() {
     setLang(code);
     writeStore(LANG_KEY, code);
   };
+
+  const changeSize = useCallback((delta: 1 | -1) => {
+    setSizeLevel((l) => Math.min(SIZE_LEVELS.length - 1, Math.max(0, l + delta)));
+  }, []);
 
   // What each dialog button does.
   const onContinueVoice = () => {
@@ -486,12 +713,6 @@ export default function PrompterPage() {
     exit();
   };
 
-  const restart = () => {
-    setPlaying(false);
-    setSaidAt(0);
-    scroller.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   useEffect(() => {
     if (dialog) return;
     const onKey = (e: KeyboardEvent) => {
@@ -501,42 +722,87 @@ export default function PrompterPage() {
       } else if (e.key === 'Escape') exit();
       else if (e.key === 'ArrowUp') setPrefs((p) => ({ ...p, speed: Math.min(10, p.speed + 1) }));
       else if (e.key === 'ArrowDown') setPrefs((p) => ({ ...p, speed: Math.max(1, p.speed - 1) }));
-      else if (e.key === '+' || e.key === '=')
-        setPrefs((p) => ({ ...p, size: Math.min(88, p.size + 4) }));
-      else if (e.key === '-') setPrefs((p) => ({ ...p, size: Math.max(20, p.size - 4) }));
+      else if (e.key === '+' || e.key === '=') changeSize(1);
+      else if (e.key === '-') changeSize(-1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggle, exit, dialog]);
+  }, [toggle, exit, dialog, changeSize]);
 
-  const onScroll = useCallback(() => {
-    const el = scroller.current;
-    if (!el) return;
-    const max = el.scrollHeight - el.clientHeight;
-    setProgress(max > 0 ? el.scrollTop / max : 0);
-    setRemainingPx(Math.max(0, max - el.scrollTop));
-  }, []);
+  /** Jump to a section: its first line glides onto the reading band. */
+  const jumpTo = (index: number) => {
+    const s = script.sections[index];
+    const box = s ? wordBox(content.current, s.first) : null;
+    if (!s || !box) return;
+    poke();
+    setFinished(false);
+    finishedRef.current = false;
+    if (prefs.voice) setSaidAt(s.first);
+    if (!listening) engine.glideTo(box.y + box.h / 2 - lay.current.readY);
+  };
+
+  // A mouse wheel or trackpad nudges the script; the page behind never scrolls.
+  useEffect(() => {
+    const el = viewport.current;
+    if (!el || !ready) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      engine.wheel(e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [engine, ready]);
+
+  // Dragging the script with a finger or a mouse; letting go keeps a little momentum.
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (playing) poke();
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag.current = { id: e.pointerId, y0: e.clientY, moved: false };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const dy = e.clientY - d.y0;
+    if (!d.moved) {
+      if (Math.abs(dy) < 8) return;
+      d.moved = true;
+      engine.dragStart();
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* the pointer is already gone */
+      }
+    }
+    engine.dragMove(dy, e.timeStamp);
+  };
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    if (!d.moved) return;
+    engine.dragEnd(e.timeStamp);
+    // The click that follows a drag is not a tap.
+    suppressClick.current = true;
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 60);
+  };
 
   // In voice mode a touched word is where the reader is: the tracker carries on from there.
   // Anywhere else a touch starts or pauses, as before.
-  const onScrollerClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = scroller.current;
+  const onViewportClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (suppressClick.current) return;
     const word = prefs.voice ? (e.target as HTMLElement).closest<HTMLElement>('[data-w]') : null;
-    if (!el || !word) {
-      toggle();
+    if (!word) {
+      if (!finished) toggle();
       return;
     }
     const index = Number(word.dataset.w);
+    setFinished(false);
+    finishedRef.current = false;
     setSaidAt(resyncPosition(index, script.words.length));
-    if (!listening) el.scrollTo({ top: wordTarget(el, word), behavior: 'smooth' });
-    else poke();
+    if (listening) poke();
   };
-
-  // Measure once the script has rendered (and again if the text size changes).
-  useEffect(() => {
-    const raf = requestAnimationFrame(onScroll);
-    return () => cancelAnimationFrame(raf);
-  }, [onScroll, prefs.size, idea]);
 
   useEffect(() => {
     if (idea === null) exit();
@@ -547,89 +813,144 @@ export default function PrompterPage() {
   const { sections, words } = script;
   const remaining = prefs.voice
     ? (Math.max(0, words.length - said) / Math.max(1, settings.wordsPerMinute)) * 60
-    : remainingPx / pxPerSecond(prefs.speed);
+    : remainingSec;
 
-  const showChrome = chrome || !playing;
+  const showChrome = chrome || !playing || dialog !== null;
+  const fontSize = SIZE_LEVELS[sizeLevel] ?? 40;
+  const leading =
+    LEADING_LEVELS[leadingLevel]?.value ?? LEADING_LEVELS[DEFAULT_LEADING_LEVEL].value;
+  const timeText = formatDuration(remaining);
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-[#050507] text-white"
+      className="fixed inset-0 z-[100] overflow-hidden bg-[#050507] text-white"
       onPointerMove={playing ? poke : undefined}
     >
-      {/* Reading line + fades */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[30vh] bg-gradient-to-b from-[#050507] via-[#050507]/85 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[35vh] bg-gradient-to-t from-[#050507] via-[#050507]/80 to-transparent" />
+      {/* The reading band: a soft lit strip with its two focus marks, drawn behind the text */}
       <div
-        className="pointer-events-none absolute inset-x-1.5 top-[36vh] z-10 flex -translate-y-1/2 items-center gap-3"
+        className="pointer-events-none absolute inset-x-0 z-0 -translate-y-1/2"
+        style={{ top: `${READ_AT * 100}%`, height: fontSize * leading + 14 }}
         aria-hidden
       >
-        <span className="size-0 border-y-[6px] border-s-[9px] border-y-transparent border-s-[var(--accent)]" />
-        <span className="h-px flex-1 bg-gradient-to-l from-transparent via-white/15 to-transparent" />
-        <span className="size-0 border-y-[6px] border-e-[9px] border-y-transparent border-e-[var(--accent)]" />
+        <div
+          className="absolute inset-x-6 inset-y-0 border-y border-white/[0.07] bg-white/[0.045]"
+          style={{
+            maskImage: 'linear-gradient(to right, transparent, #000 14%, #000 86%, transparent)',
+            WebkitMaskImage:
+              'linear-gradient(to right, transparent, #000 14%, #000 86%, transparent)',
+          }}
+        />
+        <FocusMark side="start" calm={!!reduce} />
+        <FocusMark side="end" calm={!!reduce} />
       </div>
 
+      {/* The script. Moves by a fractional transform; the mask dims what was read, softens what is
+          next and dissolves both ends of the screen. */}
       <div
-        ref={scroller}
-        onScroll={onScroll}
-        onClick={onScrollerClick}
-        className="no-scrollbar h-dvh overflow-y-auto"
-        style={{ transform: prefs.mirror ? 'scaleX(-1)' : undefined }}
+        ref={viewport}
+        onClick={onViewportClick}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        className="absolute inset-0 z-10 touch-none overflow-hidden select-none"
+        style={{ maskImage: READING_MASK, WebkitMaskImage: READING_MASK }}
       >
-        <div className="mx-auto max-w-4xl px-7 pt-[36vh] pb-[70vh] md:px-12">
-          {sections.map((s) => (
-            <section key={s.label} className="mb-[1.2em]" style={{ fontSize: prefs.size }}>
-              <p className="mb-3 font-sans text-sm font-semibold tracking-wide text-[var(--accent-ink-d)]">
-                {s.label}
-              </p>
-              <p className="font-display leading-[1.55] font-semibold whitespace-pre-wrap text-white/95">
-                {s.tokens.map((tok, k) =>
-                  tok.i < 0 ? (
-                    tok.t
-                  ) : (
-                    <span
-                      key={k}
-                      data-w={tok.i}
-                      data-said={prefs.voice && tok.i < said ? '' : undefined}
-                      className={cn(
-                        'transition-colors duration-300',
-                        tok.t.includes('___') && 'text-[var(--warn)]',
-                        prefs.voice && tok.i < said && 'text-white/35',
-                      )}
-                    >
-                      {tok.t}
+        <div className="h-full" style={{ transform: prefs.mirror ? 'scaleX(-1)' : undefined }}>
+          <div ref={content} data-reading-content className="relative will-change-transform">
+            <div className="relative z-10 mx-auto max-w-4xl px-7 pt-[36dvh] pb-[64dvh] md:px-12">
+              {/* Positioned from measurements, so physical left/top are what is wanted here. */}
+              <div
+                ref={ember}
+                aria-hidden
+                className="pointer-events-none absolute top-0 left-0 -z-10 size-[100px] origin-top-left opacity-0"
+                style={{
+                  background:
+                    'radial-gradient(closest-side, color-mix(in oklab, var(--accent) 52%, transparent) 0%, color-mix(in oklab, var(--accent-2) 24%, transparent) 52%, transparent 100%)',
+                }}
+              />
+              {sections.map((s, n) => (
+                <section
+                  key={s.key}
+                  data-section={s.key}
+                  className="mb-[1.2em]"
+                  style={{ fontSize }}
+                >
+                  <motion.div
+                    initial={false}
+                    animate={{
+                      opacity: revealed > n ? 1 : 0,
+                      y: revealed > n || reduce ? 0 : 10,
+                    }}
+                    transition={{ duration: reduce ? 0 : 0.55, ease: EASE_OUT }}
+                    className="mb-3 flex items-center gap-2.5 font-sans"
+                  >
+                    <span className="size-1.5 rounded-full bg-[var(--accent)]" aria-hidden />
+                    <span className="text-sm font-semibold tracking-wide text-[var(--accent-ink-d)]">
+                      {s.label}
                     </span>
-                  ),
-                )}
-              </p>
-            </section>
-          ))}
-          {sections.length === 0 && (
-            <p className="text-center text-2xl text-white/60">السكريبت فاضي</p>
-          )}
+                    <span
+                      className="h-px max-w-24 flex-1 bg-gradient-to-l from-white/20 to-transparent"
+                      aria-hidden
+                    />
+                  </motion.div>
+                  <p
+                    className="font-display font-semibold whitespace-pre-wrap text-white/95"
+                    style={{ lineHeight: leading }}
+                  >
+                    {s.tokens.map((tok, k) =>
+                      tok.i < 0 ? (
+                        tok.t
+                      ) : (
+                        <span
+                          key={k}
+                          data-w={tok.i}
+                          data-said={prefs.voice && tok.i < said ? '' : undefined}
+                          data-now={prefs.voice && tok.i === said ? '' : undefined}
+                          className={cn(
+                            'transition-[color,text-shadow] duration-500 ease-out',
+                            tok.t.includes('___') && 'text-[var(--warn)]',
+                            prefs.voice && tok.i < said && 'text-white/35',
+                            prefs.voice &&
+                              tok.i === said &&
+                              'text-[color-mix(in_oklab,var(--accent-ink-d)_38%,white)] [text-shadow:0_0_.45em_color-mix(in_oklab,var(--accent)_70%,transparent),0_0_1.1em_color-mix(in_oklab,var(--accent-2)_38%,transparent)]',
+                          )}
+                        >
+                          {tok.t}
+                        </span>
+                      ),
+                    )}
+                  </p>
+                </section>
+              ))}
+              {sections.length === 0 && (
+                <p className="text-center text-2xl text-white/60">السكريبت فاضي</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Countdown */}
-      <AnimatePresence>
-        {countdown !== null && countdown > 0 && (
-          <motion.div
-            key={countdown}
-            initial={{ opacity: 0, scale: 1.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.6 }}
-            transition={{ duration: 0.35 }}
-            className="pointer-events-none fixed inset-0 z-30 grid place-items-center"
-          >
-            <span className="font-display text-[9rem] font-bold text-gradient">{countdown}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Progress: a thin line along the top edge, always there */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-[env(safe-area-inset-top)] z-20 h-[3px] bg-white/[0.08]"
+        aria-hidden
+      >
+        {/* Arabic fills from the right edge, so the origin is physical on purpose. */}
+        <div
+          ref={bar}
+          className="h-full origin-right rounded-full bg-accent-gradient will-change-transform"
+          style={{ transform: 'scaleX(0)' }}
+        />
+      </div>
+
+      <Countdown value={countdown} />
 
       {/* Short messages: they fade by themselves, whatever the controls are doing */}
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 top-[max(4.75rem,calc(env(safe-area-inset-top)+3.75rem))] z-30 flex justify-center px-4"
+        className="pointer-events-none fixed inset-x-0 top-[max(8.25rem,calc(env(safe-area-inset-top)+7.25rem))] z-30 flex justify-center px-4"
       >
         {notice && (
           <p className="max-w-md rounded-2xl bg-white/15 px-4 py-2 text-center text-sm text-white backdrop-blur-xl">
@@ -641,154 +962,93 @@ export default function PrompterPage() {
       {/* Top bar */}
       <motion.header
         animate={{ opacity: showChrome ? 1 : 0, y: showChrome ? 0 : -16 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: showChrome ? 0.25 : 0.7, ease: EASE_OUT }}
         className={cn(
-          'fixed inset-x-0 top-0 z-20 flex items-center gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))]',
+          'fixed inset-x-0 top-0 z-20 flex flex-col gap-0.5 pt-[max(1rem,env(safe-area-inset-top))]',
           !showChrome && 'pointer-events-none',
         )}
       >
-        <button
-          type="button"
-          onClick={exit}
-          aria-label="خروج"
-          title="خروج"
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-white/10 backdrop-blur-xl transition-colors hover:bg-white/20"
-        >
-          <X size={20} />
-        </button>
-        <p className="line-clamp-1 flex-1 text-sm font-medium text-white/70">{idea.title}</p>
-        {listening && (
-          <span
-            role="status"
-            className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl"
-          >
-            <span className="size-2 animate-pulse rounded-full bg-[var(--accent)]" />
-            الاستماع شغال
-          </span>
-        )}
-        <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70 backdrop-blur-xl">
-          باقي <span className="num">{formatDuration(remaining)}</span>
-        </span>
-      </motion.header>
-
-      {/* Controls */}
-      <motion.div
-        animate={{ opacity: showChrome ? 1 : 0, y: showChrome ? 0 : 20 }}
-        transition={{ duration: 0.3 }}
-        className={cn(
-          'fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]',
-          !showChrome && 'pointer-events-none',
-        )}
-      >
-        {prefs.voice && (
-          <p className="mx-auto mb-3 w-fit rounded-full bg-white/10 px-4 py-1.5 text-xs text-white/75 backdrop-blur-xl">
-            المس أي كلمة لإعادة المزامنة
-          </p>
-        )}
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-3 rounded-[26px] border border-white/10 bg-white/[0.07] p-3 backdrop-blur-2xl">
-          <CtlButton label="من البداية" text="من البداية" onClick={restart}>
-            <RotateCcw size={19} />
-          </CtlButton>
-          <div className="flex items-center gap-1 rounded-2xl bg-white/5 p-1">
-            <CtlButton
-              label="تصغير الخط"
-              onClick={() => setPrefs((p) => ({ ...p, size: Math.max(20, p.size - 4) }))}
-            >
-              <Minus size={18} />
-            </CtlButton>
-            <span className="w-10 text-center text-sm font-semibold">
-              <span className="num">{prefs.size}</span>
-            </span>
-            <CtlButton
-              label="تكبير الخط"
-              onClick={() => setPrefs((p) => ({ ...p, size: Math.min(88, p.size + 4) }))}
-            >
-              <Plus size={18} />
-            </CtlButton>
-          </div>
+        <div className="flex items-center gap-3 px-4">
           <button
             type="button"
-            onClick={toggle}
-            aria-label={playing || countdown !== null ? 'إيقاف' : 'تشغيل'}
-            title={playing || countdown !== null ? 'إيقاف' : 'تشغيل'}
-            className="grid size-16 place-items-center rounded-full bg-accent-gradient-strong text-white shadow-[0_12px_30px_-10px_var(--accent)] transition-transform active:scale-90"
+            onClick={exit}
+            aria-label="خروج"
+            title="خروج"
+            className="grid size-11 shrink-0 place-items-center rounded-full bg-white/10 backdrop-blur-xl transition-[background-color,transform] duration-150 hover:bg-white/20 active:scale-90"
           >
-            {playing || countdown !== null ? (
-              <Pause size={28} fill="currentColor" />
-            ) : (
-              <Play size={28} fill="currentColor" className="-me-1" />
-            )}
+            <X size={20} />
           </button>
-          <label
+          <p className="line-clamp-1 flex-1 text-sm font-medium text-white/70">{idea.title}</p>
+          {listening && (
+            <span
+              role="status"
+              className="flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80 backdrop-blur-xl"
+            >
+              <span className="size-2 animate-pulse rounded-full bg-[var(--accent)]" />
+              الاستماع شغال
+            </span>
+          )}
+          <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/70 backdrop-blur-xl">
+            باقي{' '}
+            <motion.span
+              key={timeText}
+              initial={reduce ? false : { opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: EASE_OUT }}
+              className="num"
+            >
+              {timeText}
+            </motion.span>
+          </span>
+        </div>
+        <SectionChips
+          chips={sections.map((s) => ({ key: s.key, label: s.label }))}
+          active={activeSection}
+          onJump={jumpTo}
+        />
+      </motion.header>
+
+      {/* Controls, or the closing card once the last line has been read */}
+      <AnimatePresence initial={false}>
+        {finished ? (
+          <FinishCard key="end" seconds={playedSec} onRestart={restart} onDone={exit} />
+        ) : (
+          <motion.div
+            key="controls"
+            initial={false}
+            animate={{ opacity: showChrome ? 1 : 0, y: showChrome ? 0 : 20 }}
+            exit={{ opacity: 0, y: 12, transition: { duration: 0.2 } }}
+            transition={{ duration: showChrome ? 0.25 : 0.7, ease: EASE_OUT }}
             className={cn(
-              'flex min-h-11 items-center gap-2.5 rounded-2xl bg-white/5 px-3',
-              prefs.voice && 'hidden',
+              'fixed inset-x-0 bottom-0 z-20 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]',
+              !showChrome && 'pointer-events-none',
             )}
           >
-            <span className="text-xs text-white/60">السرعة</span>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={prefs.speed}
-              onChange={(e) => setPrefs((p) => ({ ...p, speed: Number(e.target.value) }))}
-              aria-label="سرعة التمرير"
-              className={cn(
-                'h-11 w-36 cursor-pointer appearance-none bg-transparent accent-[var(--accent)]',
-                '[&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/20',
-                '[&::-webkit-slider-thumb]:-mt-2.5 [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md',
-                '[&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-white/20',
-                '[&::-moz-range-thumb]:size-7 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white',
-              )}
+            {prefs.voice && (
+              <p className="mx-auto mb-3 w-fit rounded-full bg-white/10 px-4 py-1.5 text-xs text-white/75 backdrop-blur-xl">
+                المس أي كلمة لإعادة المزامنة
+              </p>
+            )}
+            <PrompterControls
+              running={playing || countdown !== null}
+              voice={prefs.voice}
+              mirror={prefs.mirror}
+              speed={prefs.speed}
+              sizeLevel={sizeLevel}
+              leadingLevel={leadingLevel}
+              lang={lang}
+              onRestart={restart}
+              onToggle={toggle}
+              onToggleVoice={toggleVoice}
+              onToggleMirror={() => setPrefs((p) => ({ ...p, mirror: !p.mirror }))}
+              onSize={changeSize}
+              onCycleLeading={() => setLeadingLevel((l) => (l + 1) % LEADING_LEVELS.length)}
+              onSpeed={(speed) => setPrefs((p) => ({ ...p, speed }))}
+              onLang={chooseLang}
             />
-            <span className="w-5 text-center text-sm font-semibold">
-              <span className="num">{prefs.speed}</span>
-            </span>
-          </label>
-          <CtlButton
-            label="يتبع الصوت"
-            text="يتبع الصوت"
-            active={prefs.voice}
-            onClick={toggleVoice}
-          >
-            <Mic size={19} />
-          </CtlButton>
-          {prefs.voice && (
-            <label className="flex min-h-11 items-center gap-2 rounded-2xl bg-white/5 ps-3">
-              <span className="text-xs text-white/60">اللهجة</span>
-              <select
-                value={lang}
-                onChange={(e) => chooseLang(parseDialect(e.target.value))}
-                aria-label="لهجة التعرّف على الكلام"
-                className="min-h-11 rounded-2xl bg-transparent pe-3 ps-1 text-sm font-semibold text-white outline-none"
-              >
-                {DIALECTS.map((d) => (
-                  <option key={d.code} value={d.code} className="bg-[#14141a] text-white">
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <CtlButton
-            label="عكس الصورة للمرآة"
-            text="مرآة"
-            active={prefs.mirror}
-            onClick={() => setPrefs((p) => ({ ...p, mirror: !p.mirror }))}
-          >
-            <FlipHorizontal2 size={19} />
-          </CtlButton>
-        </div>
-        <div
-          className="mx-auto mt-3 h-1 max-w-2xl overflow-hidden rounded-full bg-white/10"
-          aria-hidden
-        >
-          <div
-            className="h-full rounded-full bg-accent-gradient"
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-      </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {dialog && (
         <PrompterDialog
@@ -804,35 +1064,18 @@ export default function PrompterPage() {
   );
 }
 
-function CtlButton({
-  label,
-  text,
-  onClick,
-  children,
-  active,
-}: {
-  label: string;
-  /** A visible caption under the icon, for buttons that are only an icon otherwise. */
-  text?: string;
-  onClick: () => void;
-  children: React.ReactNode;
-  active?: boolean;
-}) {
+/** One of the two focus marks at the edges of the band; they breathe very slightly. */
+function FocusMark({ side, calm }: { side: 'start' | 'end'; calm: boolean }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      aria-pressed={active}
-      onClick={onClick}
+    <motion.span
       className={cn(
-        'flex min-h-11 min-w-11 flex-col items-center justify-center gap-1 rounded-xl transition-colors active:scale-90',
-        text ? 'px-2.5 py-1.5' : 'size-11',
-        active ? 'bg-white text-black' : 'text-white/85 hover:bg-white/10',
+        'absolute top-1/2 -mt-1.5 size-0 border-y-[6px] border-y-transparent',
+        side === 'start'
+          ? 'start-1.5 border-s-[9px] border-s-[var(--accent)]'
+          : 'end-1.5 border-e-[9px] border-e-[var(--accent)]',
       )}
-    >
-      {children}
-      {text && <span className="text-xs leading-none font-medium">{text}</span>}
-    </button>
+      animate={calm ? undefined : { opacity: [0.62, 1, 0.62], scale: [0.94, 1.08, 0.94] }}
+      transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut' }}
+    />
   );
 }

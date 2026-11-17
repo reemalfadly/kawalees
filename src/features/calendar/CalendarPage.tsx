@@ -46,21 +46,22 @@ import {
 } from '@/lib/dates';
 import { plural, WORDS } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
-import { scheduleIdea } from '@/lib/repo';
 import { publishedDayKey } from '@/lib/stats';
 import { HIT_BUTTON, HIT_ICON } from '@/lib/touch';
 import type { Idea } from '@/lib/types';
 import { toast, useUI } from '@/store/ui';
+import { useScheduleGuard } from '@/features/gate/useScheduleGuard';
+import { isCredibleSchedule, joinPhrases, scheduleBlockers } from '@/features/gate/stageStatus';
 
 /* Month view of the publishing plan. Drag ideas from the tray onto a day (or
    between days) to schedule them; tap a day to see and add to it. */
 
 let lastDragEnd = 0;
 
+/** A day counts as planned only when the idea can stand behind it (a real hook and script). */
 function dayOf(idea: Idea): string | null {
-  return idea.stage === 'published'
-    ? (publishedDayKey(idea) ?? idea.scheduledFor)
-    : idea.scheduledFor;
+  if (idea.stage === 'published') return publishedDayKey(idea) ?? idea.scheduledFor;
+  return isCredibleSchedule(idea) ? idea.scheduledFor : null;
 }
 
 function sortByTime(a: Idea, b: Idea) {
@@ -72,6 +73,7 @@ export default function CalendarPage() {
   const settings = useSettings();
   const tablet = useIsTablet();
   const openCapture = useUI((s) => s.openCapture);
+  const { trySchedule } = useScheduleGuard();
   const today = todayKey();
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
@@ -96,7 +98,7 @@ export default function CalendarPage() {
     return map;
   }, [ideas]);
   const unscheduled = ideas
-    .filter((i) => !i.scheduledFor && i.stage !== 'published')
+    .filter((i) => !dayOf(i) && i.stage !== 'published')
     .sort((a, b) => b.spark - a.spark || b.updatedAt - a.updatedAt);
 
   const monthDate = new Date(cursor.y, cursor.m, 1);
@@ -137,19 +139,22 @@ export default function CalendarPage() {
     if (!idea || typeof target !== 'string') return;
     if (target === 'tray') {
       if (idea.scheduledFor && idea.stage !== 'published') {
-        await scheduleIdea(idea.id, null);
+        const cleared = await trySchedule(idea, null, null);
+        if (!cleared.ok) return;
         toast({
           title: 'انشالت من الجدول',
           action: {
             label: 'تراجع',
-            run: () => void scheduleIdea(idea.id, idea.scheduledFor, idea.scheduledTime),
+            run: () => void trySchedule(idea, idea.scheduledFor, idea.scheduledTime),
           },
         });
       }
       return;
     }
     if (target === idea.scheduledFor || idea.stage === 'published') return;
-    await scheduleIdea(idea.id, target, idea.scheduledTime);
+    // A refused day explains what is missing and changes nothing: no success toast.
+    const result = await trySchedule(idea, target, idea.scheduledTime);
+    if (!result.ok) return;
     haptics.success();
     setSelected(target);
     toast({
@@ -158,7 +163,7 @@ export default function CalendarPage() {
       tone: 'success',
       action: {
         label: 'تراجع',
-        run: () => void scheduleIdea(idea.id, idea.scheduledFor, idea.scheduledTime),
+        run: () => void trySchedule(idea, idea.scheduledFor, idea.scheduledTime),
       },
     });
   };
@@ -505,6 +510,8 @@ function TrayItem({ idea }: { idea: Idea }) {
     id: `tray-${idea.id}`,
     data: { idea },
   });
+  // Ideas that cannot take a day yet say why, so a refused drop is never a surprise.
+  const blockers = scheduleBlockers(idea);
   return (
     <li
       ref={setNodeRef}
@@ -523,7 +530,14 @@ function TrayItem({ idea }: { idea: Idea }) {
         style={{ background: STAGE_META[idea.stage].color }}
         aria-hidden
       />
-      <span className="line-clamp-1 flex-1 text-sm text-ink">{idea.title}</span>
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-1 block text-sm text-ink">{idea.title}</span>
+        {blockers.length > 0 && (
+          <span className="line-clamp-1 block text-xs text-ink-3" data-testid="tray-blockers">
+            يحتاج أولاً: {joinPhrases(idea, blockers, 2)}
+          </span>
+        )}
+      </span>
     </li>
   );
 }

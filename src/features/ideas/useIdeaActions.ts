@@ -1,42 +1,19 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { STAGE_META } from '@/lib/catalog';
 import { haptics } from '@/lib/haptics';
-import { deleteIdea, duplicateIdea, restoreIdea, setStage, updateIdea } from '@/lib/repo';
+import { requestMove } from '@/features/gate/moves';
+import { deleteIdea, duplicateIdea, restoreIdea, updateIdea } from '@/lib/repo';
 import type { Idea, Stage } from '@/lib/types';
-import { toast, useUI } from '@/store/ui';
+import { toast } from '@/store/ui';
 
 /* Shared idea actions with the same feedback everywhere: haptics, toasts,
    confetti on publish, and undo for anything destructive. */
 export function useIdeaActions() {
   const navigate = useNavigate();
-  const celebrate = useUI((s) => s.celebrate);
 
-  const moveTo = useCallback(
-    async (idea: Idea, stage: Stage) => {
-      if (idea.stage === stage) return;
-      const previous = idea.stage;
-      await setStage(idea.id, stage);
-      if (stage === 'published') {
-        celebrate();
-        haptics.success();
-        toast({
-          title: 'نزل للعالم 🚀',
-          description: idea.title,
-          tone: 'success',
-          action: { label: 'تراجع', run: () => void setStage(idea.id, previous) },
-        });
-      } else {
-        haptics.tap();
-        toast({
-          title: `انتقلت إلى «${STAGE_META[stage].label}»`,
-          action: { label: 'تراجع', run: () => void setStage(idea.id, previous) },
-        });
-      }
-    },
-    [celebrate],
-  );
+  // Forward moves open the checkpoint; backward moves are free. Nothing moves without the repo.
+  const moveTo = useCallback((idea: Idea, stage: Stage) => requestMove(idea, stage), []);
 
   const remove = useCallback(async (idea: Idea, after?: () => void) => {
     const removed = await deleteIdea(idea.id);

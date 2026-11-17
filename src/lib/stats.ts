@@ -1,5 +1,6 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
 import { addDaysKey, diffDays, fromDayKey, startOfWeek, toDayKey, type WeekStart } from './dates';
+import { effectiveStage, publishGatePassed } from './gates';
 import { scriptWords } from './script';
 import { PLATFORMS, STAGES, type Idea, type PlatformId, type Stage, type StatEntry } from './types';
 
@@ -20,8 +21,11 @@ export const SCRIPT_BONUS_XP = 15;
 export const SCRIPT_BONUS_WORDS = 50;
 export const STAT_XP = 5;
 
+/** XP follows the honest stage: a published idea that never passed the gate counts as «جاهز». */
 export function ideaXp(idea: Idea): number {
-  return STAGE_XP[idea.stage] + (scriptWords(idea) >= SCRIPT_BONUS_WORDS ? SCRIPT_BONUS_XP : 0);
+  return (
+    STAGE_XP[effectiveStage(idea)] + (scriptWords(idea) >= SCRIPT_BONUS_WORDS ? SCRIPT_BONUS_XP : 0)
+  );
 }
 
 export function totalXp(ideas: Idea[], stats: StatEntry[]): number {
@@ -104,8 +108,13 @@ export function bestStreak(days: Iterable<string>): number {
 
 // ── Publishing cadence ─────────────────────────────────────────
 
+/** Counts as published only when it passed the publish gate (older data is never judged retroactively). */
+export function countsAsPublished(idea: Idea): boolean {
+  return idea.publishedAt != null && publishGatePassed(idea);
+}
+
 export function publishedDayKey(idea: Idea): string | null {
-  return idea.publishedAt != null ? toDayKey(new Date(idea.publishedAt)) : null;
+  return countsAsPublished(idea) ? toDayKey(new Date(idea.publishedAt!)) : null;
 }
 
 export interface WeekCount {
@@ -153,7 +162,7 @@ export function weeklyGoalStreak(
 
 export function countByStage(ideas: Idea[]): Record<Stage, number> {
   const out = Object.fromEntries(STAGES.map((s) => [s, 0])) as Record<Stage, number>;
-  for (const i of ideas) out[i.stage]++;
+  for (const i of ideas) out[effectiveStage(i)]++;
   return out;
 }
 
@@ -249,7 +258,7 @@ export interface AchievementContext {
 export function achievements(ctx: AchievementContext): Achievement[] {
   const now = ctx.now ?? new Date();
   const live = ctx.ideas.filter((i) => !i.archived);
-  const published = live.filter((i) => i.stage === 'published');
+  const published = live.filter((i) => i.stage === 'published' && publishGatePassed(i));
   const scripts = live.filter((i) => scriptWords(i) >= SCRIPT_BONUS_WORDS).length;
   const scheduled = live.filter((i) => i.scheduledFor).length;
   const best = bestStreak(ctx.activeDays);
@@ -413,14 +422,14 @@ export function monthRecap(
   const prev = new Date(year, month - 1, 1);
   const created = ideas.filter((i) => inMonth(i.createdAt, year, month));
   const published = ideas.filter(
-    (i) => i.publishedAt != null && inMonth(i.publishedAt, year, month),
+    (i) => countsAsPublished(i) && inMonth(i.publishedAt!, year, month),
   );
   const days = activeDays.filter((d) => dayInMonth(d, year, month));
 
   const weekdayCounts = new Array<number>(7).fill(0);
   for (const i of [...created, ...published]) {
     const ts =
-      i.publishedAt != null && inMonth(i.publishedAt, year, month) ? i.publishedAt : i.createdAt;
+      countsAsPublished(i) && inMonth(i.publishedAt!, year, month) ? i.publishedAt! : i.createdAt;
     const wd = new Date(ts).getDay();
     weekdayCounts[wd] = (weekdayCounts[wd] ?? 0) + 1;
   }
@@ -461,7 +470,7 @@ export function monthRecap(
     prevIdeasCreated: ideas.filter((i) => inMonth(i.createdAt, prev.getFullYear(), prev.getMonth()))
       .length,
     prevPublished: ideas.filter(
-      (i) => i.publishedAt != null && inMonth(i.publishedAt, prev.getFullYear(), prev.getMonth()),
+      (i) => countsAsPublished(i) && inMonth(i.publishedAt!, prev.getFullYear(), prev.getMonth()),
     ).length,
     wordsWritten: created.reduce((sum, i) => sum + scriptWords(i), 0),
     activeDays: days.length,

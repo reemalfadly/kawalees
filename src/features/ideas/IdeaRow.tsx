@@ -5,6 +5,7 @@ import { PlatformStack } from '@/components/ui/PlatformIcon';
 import { StageBadge } from '@/components/ui/StageBadge';
 import { FORMAT_META, STAGE_META } from '@/lib/catalog';
 import { cn } from '@/lib/cn';
+import { isCredibleSchedule } from '@/features/gate/stageStatus';
 import { formatTimeKey, relativeDayLabel } from '@/lib/dates';
 import type { Idea } from '@/lib/types';
 
@@ -28,7 +29,8 @@ export function SparkFlames({
 }
 
 export function ScheduleLabel({ idea, className }: { idea: Idea; className?: string }) {
-  if (!idea.scheduledFor) return null;
+  // An idea that cannot stand behind its day (no real hook or script) is not shown as scheduled.
+  if (!idea.scheduledFor || (idea.stage !== 'published' && !isCredibleSchedule(idea))) return null;
   return (
     <span className={cn('inline-flex items-center gap-1 text-xs text-ink-3', className)}>
       <CalendarClock size={13} />

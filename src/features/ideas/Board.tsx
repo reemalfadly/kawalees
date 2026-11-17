@@ -222,8 +222,10 @@ export function Board({ ideas, focus }: { ideas: Idea[]; focus: Stage | null }) 
           onDragStart: () => 'بدأ السحب',
           onDragOver: ({ over }) =>
             over ? `فوق «${STAGE_META[over.id as Stage]?.label ?? ''}»` : '',
+          // The drop only asks for the move: forward moves may be refused by the checkpoint, so never
+          // announce «انتقلت» here (the toast says so once the move really happened).
           onDragEnd: ({ over }) =>
-            over ? `انتقلت إلى «${STAGE_META[over.id as Stage]?.label ?? ''}»` : 'انلغى السحب',
+            over ? `أُفلتت فوق «${STAGE_META[over.id as Stage]?.label ?? ''}»` : 'انلغى السحب',
           onDragCancel: () => 'انلغى السحب',
         },
       }}

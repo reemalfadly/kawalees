@@ -21,14 +21,27 @@ import {
   deletePillar,
   duplicateIdea,
   getSettings,
+  moveIdeaStage,
   restoreIdea,
   savePillar,
   scheduleIdea,
-  setStage,
   updateSettings,
 } from '@/lib/repo';
 import { isDemoData, loadDemoData } from '@/lib/seed';
 import { ERROR_LIMIT, trackError } from '@/lib/tracker';
+
+/** An idea that passes every content gate; approvals come separately. */
+const COMPLETE = {
+  title: 'فكرة مكتملة',
+  platforms: ['instagram' as const],
+  hook: 'هل جربت هذه الطريقة قبل اليوم',
+  body: Array.from({ length: 30 }, (_, i) => `كلمة${i}`).join(' '),
+};
+const EVERYTHING = {
+  approvals: ['shoot' as const, 'edit' as const, 'ready' as const],
+  proof: 'final-cut.mp4',
+  publishedUrl: 'https://instagram.com/reel/abc',
+};
 
 beforeEach(async () => {
   await Promise.all(db.tables.map((t) => t.clear()));
@@ -48,15 +61,16 @@ describe('ideas', () => {
   });
 
   it('stamps publishedAt when published and clears it when moved back', async () => {
-    const idea = await createIdea({ title: 'x' });
-    await setStage(idea.id, 'published');
+    const idea = await createIdea(COMPLETE);
+    const done = await moveIdeaStage(idea.id, 'published', EVERYTHING);
+    expect(done.ok).toBe(true);
     expect((await db.ideas.get(idea.id))?.publishedAt).toBeTypeOf('number');
-    await setStage(idea.id, 'edit');
+    await moveIdeaStage(idea.id, 'edit');
     expect((await db.ideas.get(idea.id))?.publishedAt).toBeNull();
   });
 
   it('schedules and unschedules', async () => {
-    const idea = await createIdea({ title: 'x' });
+    const idea = await createIdea(COMPLETE);
     await scheduleIdea(idea.id, '2026-10-01', '19:30');
     expect(await db.ideas.get(idea.id)).toMatchObject({
       scheduledFor: '2026-10-01',
@@ -66,15 +80,19 @@ describe('ideas', () => {
     expect(await db.ideas.get(idea.id)).toMatchObject({ scheduledFor: null, scheduledTime: null });
   });
 
-  it('duplicates without carrying over publish or schedule state', async () => {
-    const idea = await createIdea({ title: 'أصل', stage: 'published', scheduledFor: '2026-10-01' });
+  it('duplicates without carrying over publish, schedule or approval state', async () => {
+    const idea = await createIdea({ ...COMPLETE, title: 'أصل', scheduledFor: '2026-10-01' });
+    await moveIdeaStage(idea.id, 'published', EVERYTHING);
     const copy = await duplicateIdea(idea.id);
     expect(copy).toMatchObject({
       title: 'أصل (نسخة)',
-      stage: 'ready',
+      stage: 'shoot',
       publishedAt: null,
       scheduledFor: null,
+      approvals: {},
     });
+    expect(copy?.proof).toBeUndefined();
+    expect(copy?.publishedUrl).toBeUndefined();
   });
 
   it('supports undo after delete', async () => {

@@ -1,5 +1,13 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
-import { expect, openCapture, startWithDemo, test } from './fixtures';
+import {
+  createAndOpenIdea,
+  expect,
+  fillScript,
+  GOOD_HOOK,
+  moveVia,
+  startWithDemo,
+  test,
+} from './fixtures';
 
 test.describe('first run', () => {
   test('onboarding sets up the studio', async ({ page, errors: _errors }) => {
@@ -30,31 +38,27 @@ test.describe('first run', () => {
 test.describe('ideas', () => {
   test('capture, edit, persist and move through stages', async ({ page, errors: _errors }) => {
     await startWithDemo(page);
-    await openCapture(page);
     const title = 'فكرة اختبار تلقائي';
-    await page.getByRole('textbox', { name: 'عنوان الفكرة الجديدة' }).fill(title);
-    await page.getByRole('button', { name: 'حفظ وفتح' }).click();
+    await createAndOpenIdea(page, title);
 
-    await expect(page).toHaveURL(/#\/idea\//);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: 'عنوان الفكرة', exact: true })).toHaveValue(
-      title,
-    );
-
-    await page.getByRole('textbox', { name: 'الخطّاف' }).fill('هذا الخطّاف يوقف السكرول');
-    await page.getByRole('textbox', { name: 'المحتوى' }).fill('كلمة '.repeat(30));
-    await expect(page.getByRole('status').filter({ hasText: 'محفوظ' })).toBeVisible({
-      timeout: 5000,
-    });
+    await fillScript(page);
 
     await page.reload();
-    await expect(page.getByRole('textbox', { name: 'الخطّاف' })).toHaveValue(
-      'هذا الخطّاف يوقف السكرول',
-    );
+    await expect(page.getByRole('textbox', { name: 'الخطّاف' })).toHaveValue(GOOD_HOOK);
 
+    // Forward moves go through the checkpoint; the idea only changes stage once it is passed.
     await page.getByRole('button', { name: 'نقل لـ«كتابة»' }).click();
+    await expect(page.getByTestId('gate-sheet')).toBeVisible();
+    await expect(page.locator('[aria-current="step"]')).toContainText('فكرة');
+    await page.getByTestId('gate-confirm').click();
+    await expect(page.getByTestId('gate-sheet')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'نقل لـ«تصوير»' })).toBeVisible();
     await expect(page.locator('[aria-current="step"]')).toContainText('كتابة');
+
+    // The script gate is met, so the next checkpoint asks only for the shoot confirmation.
+    await moveVia(page, 'تصوير');
+    await expect(page.locator('[aria-current="step"]')).toContainText('تصوير');
+    await expect(page.getByRole('button', { name: 'نقل لـ«مونتاج»' })).toBeVisible();
   });
 
   test('search finds ideas regardless of hamza spelling', async ({ page, errors: _errors }) => {

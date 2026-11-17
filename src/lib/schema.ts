@@ -24,6 +24,14 @@ export const ideaSchema = z.object({
   scheduledTime: timeKey.nullable().default(null),
   publishedAt: z.number().nullable().default(null),
   archived: z.boolean().default(false),
+  // Stage gates. All optional so backups saved before gates existed still import untouched;
+  // a missing `approvals` marks such an idea as legacy (never judged retroactively).
+  /** When each stage was confirmed as really done, by the stage being left. */
+  approvals: z.partialRecord(z.enum(STAGES), z.number()).optional(),
+  /** Link or file name of the final video. */
+  proof: z.string().max(2_000).optional(),
+  /** Link of the live post. */
+  publishedUrl: z.string().max(2_000).optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

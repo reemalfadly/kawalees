@@ -1,5 +1,5 @@
 // © 2026 Eng.Reem Alfadly · Kawalees · All rights reserved · KWL-RA-E20A3710
-/* The ten questions people ask most, answered briefly. Plain Modern Standard Arabic, neutral in
+/* The twelve questions people ask most, answered briefly. Plain Modern Standard Arabic, neutral in
    gender. `action` adds a button under the answer (it is wired up in HelpSheet). */
 
 export interface Faq {
@@ -61,5 +61,15 @@ export const FAQ: readonly Faq[] = [
     id: 'report',
     q: 'كيف أبلغ عن مشكلة؟',
     a: 'زر «نسخ سجل الأخطاء» في أسفل هذه الصفحة ينسخ السجل، ثم يُرسل عبر قناة الدعم مع وصف ما حدث ونوع الجهاز والمتصفح. السجل يحمل تفاصيل تقنية فقط، لا أفكارك ولا أرقامك.',
+  },
+  {
+    id: 'stage-gates',
+    q: 'لماذا لا أستطيع نقل الفكرة للمرحلة التالية؟',
+    a: 'كل مرحلة تُغلق بإنجاز حقيقي. للخروج من «كتابة» يلزم خطّاف ومحتوى مكتملان بلا علامات الفراغ «___». وللانتقال بعد «تصوير» و«مونتاج» والنشر يلزم تأكيد إنجاز كل خطوة فعلاً. أما رابط الفيديو ورابط المنشور فاختياريان. الشاشة تعرض ما ينقص بالضبط عند المحاولة.',
+  },
+  {
+    id: 'schedule-gate',
+    q: 'لماذا لا تقبل الجدولة فكرتي؟',
+    a: 'الجدولة تتطلب أن يكون الخطّاف والمحتوى مكتوبين وخاليين من علامات الفراغ «___». بعد استكمالهما تُقبل الجدولة مباشرة.',
   },
 ];
